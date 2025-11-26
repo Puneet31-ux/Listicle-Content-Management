@@ -32,6 +32,7 @@ interface ColumnProps {
   onAddTask: (columnId: string) => void
   onEditTask: (task: Task) => void
   onResearchTask: (task: Task) => void
+  onBraveSearch?: (task: Task) => void
   onEditColumn: (column: ColumnType) => void
 }
 
@@ -41,6 +42,7 @@ export function Column({
   onAddTask,
   onEditTask,
   onResearchTask,
+  onBraveSearch,
   onEditColumn,
 }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
@@ -136,6 +138,7 @@ export function Column({
                   task={task}
                   onEdit={onEditTask}
                   onResearch={onResearchTask}
+                  onBraveSearch={onBraveSearch}
                 />
               ))}
             </SortableContext>

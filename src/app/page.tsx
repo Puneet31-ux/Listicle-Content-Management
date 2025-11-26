@@ -4,16 +4,28 @@ import { useState } from 'react'
 import { Board } from '@/components/kanban/board'
 import { TaskDialog } from '@/components/kanban/task-dialog'
 import { ColumnDialog } from '@/components/kanban/column-dialog'
+import { BraveResultsModal } from '@/components/kanban/brave-results-modal'
 import { Button } from '@/components/ui/button'
 import { Task, Column } from '@/lib/types'
 import { useKanbanStore } from '@/store/kanban-store'
 
+interface BraveResult {
+  title: string
+  url: string
+  description: string
+}
+
 export default function Home() {
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
   const [columnDialogOpen, setColumnDialogOpen] = useState(false)
+  const [braveModalOpen, setBraveModalOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | undefined>()
   const [selectedColumn, setSelectedColumn] = useState<Column | undefined>()
   const [selectedColumnId, setSelectedColumnId] = useState<string | undefined>()
+  const [braveResults, setBraveResults] = useState<BraveResult[]>([])
+  const [braveKeywords, setBraveKeywords] = useState<string[]>([])
+  const [braveLoading, setBraveLoading] = useState(false)
+  const [braveTaskTitle, setBraveTaskTitle] = useState('')
 
   const setTaskResearchLoading = useKanbanStore((state) => state.setTaskResearchLoading)
   const setTaskResearch = useKanbanStore((state) => state.setTaskResearch)
@@ -71,7 +83,12 @@ export default function Home() {
       })
 
       if (data.note) {
-        alert(data.note)
+        // Show toast for OpenAI missing key
+        if (data.note.includes('OPENAI_API_KEY')) {
+          alert('⚠️ OpenAI key missing — advanced prompt generation disabled.')
+        } else {
+          alert(data.note)
+        }
       }
     } catch (error) {
       console.error('Research error:', error)
@@ -81,6 +98,45 @@ export default function Home() {
           : 'Failed to perform research. Please check your API keys.'
       )
       setTaskResearchLoading(task.id, false)
+    }
+  }
+
+  const handleBraveSearch = async (task: Task) => {
+    try {
+      setBraveLoading(true)
+      setBraveTaskTitle(task.title)
+      setBraveModalOpen(true)
+      setBraveResults([])
+      setBraveKeywords([])
+
+      const response = await fetch('/api/brave-search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          topic: task.title,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Brave search failed')
+      }
+
+      const data = await response.json()
+      setBraveResults(data.results || [])
+      setBraveKeywords(data.keywords || [])
+    } catch (error) {
+      console.error('Brave search error:', error)
+      setBraveModalOpen(false)
+      alert(
+        '❌ ' + (error instanceof Error
+          ? error.message
+          : 'Failed to perform Brave search. Please check your API key.')
+      )
+    } finally {
+      setBraveLoading(false)
     }
   }
 
@@ -124,6 +180,7 @@ export default function Home() {
           onAddTask={handleAddTask}
           onEditTask={handleEditTask}
           onResearchTask={handleResearchTask}
+          onBraveSearch={handleBraveSearch}
           onEditColumn={handleEditColumn}
         />
       </main>
@@ -140,6 +197,15 @@ export default function Home() {
         open={columnDialogOpen}
         onOpenChange={setColumnDialogOpen}
         column={selectedColumn}
+      />
+
+      <BraveResultsModal
+        open={braveModalOpen}
+        onOpenChange={setBraveModalOpen}
+        taskTitle={braveTaskTitle}
+        results={braveResults}
+        keywords={braveKeywords}
+        isLoading={braveLoading}
       />
     </div>
   )

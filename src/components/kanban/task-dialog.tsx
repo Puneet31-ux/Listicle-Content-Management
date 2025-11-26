@@ -98,36 +98,66 @@ export function TaskDialog({
     alert('Copied to clipboard!')
   }
 
+  // Get selected column to use its color
+  const selectedColumn = columns.find((col) => col.id === selectedColumnId)
+  const accentColor = selectedColumn?.color || '#3b82f6'
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>{task ? 'Edit Task' : 'Add New Task'}</DialogTitle>
-        </DialogHeader>
+      <DialogContent
+        className="overflow-hidden flex flex-col p-0 gap-0 border"
+        style={{
+          width: '380px',
+          maxWidth: '90%',
+          maxHeight: '85vh',
+          backgroundColor: '#f5f5f7',
+          color: '#1f2937',
+          borderRadius: '12px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+          border: '1px solid #e5e7eb',
+        }}
+      >
+        {/* Clean Header */}
+        <div className="px-5 py-4 border-b border-gray-300">
+          <DialogTitle className="text-lg font-semibold text-gray-900">
+            {task ? 'Edit Task' : 'New Task'}
+          </DialogTitle>
+        </div>
 
-        <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
+        <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1">
           {/* Title */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              Title <span className="text-danger-500">*</span>
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium text-gray-700">
+              Title <span className="text-indigo-600">*</span>
             </label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Enter task title..."
               autoFocus
+              className="h-9 text-sm bg-white border-gray-300 text-gray-900 placeholder:text-gray-400"
+              style={{
+                padding: '8px',
+                borderRadius: '6px',
+                border: '1px solid #ccc',
+              }}
             />
           </div>
 
           {/* Column */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium text-gray-700">
               Column
             </label>
             <select
               value={selectedColumnId}
               onChange={(e) => setSelectedColumnId(e.target.value)}
-              className="w-full px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+              className="w-full text-sm text-gray-900 bg-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+              style={{
+                padding: '8px',
+                borderRadius: '6px',
+                border: '1px solid #ccc',
+              }}
             >
               {columns.map((col) => (
                 <option key={col.id} value={col.id}>
@@ -137,17 +167,22 @@ export function TaskDialog({
             </select>
           </div>
 
-          {/* Priority and Assignee Row */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Two Column Layout: Priority + Assignee */}
+          <div className="grid grid-cols-2 gap-3">
             {/* Priority */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-gray-700">
                 Priority
               </label>
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as 'low' | 'normal' | 'high')}
-                className="w-full px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                className="w-full text-sm text-gray-900 bg-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                style={{
+                  padding: '8px',
+                  borderRadius: '6px',
+                  border: '1px solid #ccc',
+                }}
               >
                 <option value="low">Low</option>
                 <option value="normal">Normal</option>
@@ -156,52 +191,42 @@ export function TaskDialog({
             </div>
 
             {/* Assignee */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Assignee (2-3 letters)
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-gray-700">
+                Assignee
               </label>
               <Input
                 value={assignee}
                 onChange={(e) => setAssignee(e.target.value.toUpperCase().slice(0, 3))}
                 placeholder="e.g., JD"
                 maxLength={3}
+                className="h-9 text-sm bg-white border-gray-300 text-gray-900 placeholder:text-gray-400"
+                style={{
+                  padding: '8px',
+                  borderRadius: '6px',
+                  border: '1px solid #ccc',
+                }}
               />
             </div>
           </div>
 
-          {/* Description with Preview Toggle */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium text-gray-700">
-                Description (Markdown supported)
-              </label>
-              <Button
-                variant="ghost"
-                onClick={() => setShowPreview(!showPreview)}
-                className="h-10 px-4 text-sm"
-              >
-                {showPreview ? 'Edit' : 'Preview'}
-              </Button>
-            </div>
-
-            {showPreview ? (
-              <div className="w-full min-h-[200px] px-4 py-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-lg prose prose-sm max-w-none">
-                {description ? (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {description}
-                  </ReactMarkdown>
-                ) : (
-                  <p className="text-gray-400">No description yet</p>
-                )}
-              </div>
-            ) : (
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Enter description (supports markdown)..."
-                rows={8}
-              />
-            )}
+          {/* Description */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium text-gray-700">
+              Description
+            </label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Add task description (optional)..."
+              rows={3}
+              className="text-sm resize-none bg-white border-gray-300 text-gray-900 placeholder:text-gray-400"
+              style={{
+                padding: '8px',
+                borderRadius: '6px',
+                border: '1px solid #ccc',
+              }}
+            />
           </div>
 
           {/* AI Research Display */}
@@ -362,19 +387,36 @@ export function TaskDialog({
           )}
         </div>
 
-        <DialogFooter>
+        {/* Clean Footer */}
+        <div className="px-5 py-3 border-t border-gray-300 flex items-center justify-between gap-2" style={{ backgroundColor: '#ececee' }}>
           {task && (
-            <Button variant="danger" onClick={handleDelete} className="mr-auto h-10 px-4 text-sm">
+            <button
+              onClick={handleDelete}
+              className="text-xs font-medium text-red-600 hover:text-red-700 px-4 py-1.5 border border-red-400 rounded-lg transition-colors hover:bg-red-50"
+            >
               Delete
-            </Button>
+            </button>
           )}
-          <DialogClose asChild>
-            <Button variant="secondary" className="h-10 px-4 text-sm">Cancel</Button>
-          </DialogClose>
-          <Button onClick={handleSave} disabled={!title.trim()} className="h-10 px-4 text-sm">
-            {task ? 'Save Changes' : 'Create Task'}
-          </Button>
-        </DialogFooter>
+          <div className="flex items-center gap-2 ml-auto">
+            {!task && (
+              <DialogClose asChild>
+                <button className="text-xs font-medium text-gray-700 hover:text-gray-900 px-4 py-1.5 border border-gray-400 rounded-lg transition-colors hover:bg-gray-100">
+                  Cancel
+                </button>
+              </DialogClose>
+            )}
+            <button
+              onClick={handleSave}
+              disabled={!title.trim()}
+              className="text-xs font-semibold text-white px-5 py-1.5 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
+              style={{
+                backgroundColor: title.trim() ? '#4F46E5' : '#9ca3af',
+              }}
+            >
+              {task ? 'Save' : 'Create'}
+            </button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   )

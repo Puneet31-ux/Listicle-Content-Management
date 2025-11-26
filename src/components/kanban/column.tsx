@@ -5,7 +5,6 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { Column as ColumnType, Task } from '@/lib/types'
 import { TaskCard } from './task-card'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 // Helper function to convert hex color to RGB
@@ -54,7 +53,7 @@ export function Column({
   const lightBg = useMemo(() => getLightBackground(column.color || '#3b82f6'), [column.color])
 
   return (
-    <div className="flex-shrink-0 w-80 md:w-96">
+    <div className="flex-shrink-0 w-[300px]">
       <div className="flex flex-col h-full">
         {/* Column Header - Colorful */}
         <div
@@ -164,40 +163,32 @@ export function Column({
           </div>
 
           {/* Add Task Button - Sticky at bottom */}
-          <div className="p-3 border-t border-white/30" style={{ backgroundColor: lightBg }}>
-            <Button
-              variant="ghost"
-              className="w-full justify-start hover:scale-[1.01] transition-transform h-10 px-4 text-sm"
+          <div className="p-3 flex justify-center" style={{ backgroundColor: lightBg }}>
+            <button
+              className="flex items-center justify-center gap-1.5 rounded-lg font-medium transition-all duration-200 hover:scale-105 hover:shadow-md"
               style={{
-                color: column.color,
-                backgroundColor: 'rgba(255, 255, 255, 0.7)',
-              }}
-              onMouseEnter={(e) => {
-                const rgb = hexToRgb(column.color || '#3b82f6')
-                if (rgb) {
-                  e.currentTarget.style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.15)`
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.7)'
+                width: '140px',
+                height: '36px',
+                fontSize: '14px',
+                color: 'white',
+                backgroundColor: column.color || '#3b82f6',
               }}
               onClick={() => onAddTask(column.id)}
             >
               <svg
-                className="w-4 h-4 mr-2"
-                fill="none"
+                width="16"
+                height="16"
                 viewBox="0 0 24 24"
+                fill="none"
                 stroke="currentColor"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
+                <path d="M12 4v16m8-8H4" />
               </svg>
-              Add task
-            </Button>
+              <span>Add Task</span>
+            </button>
           </div>
         </div>
       </div>

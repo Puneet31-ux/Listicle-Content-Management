@@ -58,8 +58,9 @@ export function TaskCard({ task, onEdit, onResearch }: TaskCardProps) {
       exit={{ opacity: 0, scale: 0.9 }}
       whileHover={{ scale: 1.02, y: -4 }}
       className={cn(
-        'group bg-white rounded-lg transition-all duration-200 cursor-pointer overflow-hidden',
-        'border-l-4',
+        'group bg-white rounded-lg transition-all duration-200 cursor-pointer',
+        'border-l-4 max-h-[120px] overflow-hidden',
+        'w-full',
         isDragging ? 'opacity-50 shadow-2xl scale-105' : 'shadow-sm hover:shadow-xl',
         priority === 'high' && 'border-l-red-500',
         priority === 'normal' && 'border-l-blue-500',
@@ -142,7 +143,7 @@ export function TaskCard({ task, onEdit, onResearch }: TaskCardProps) {
         </div>
 
         {/* Task Title */}
-        <h4 className="text-sm font-semibold text-gray-900 mb-1 line-clamp-2 leading-snug">
+        <h4 className="text-sm font-semibold text-gray-900 mb-1 truncate">
           {task.title}
         </h4>
 
@@ -161,7 +162,7 @@ export function TaskCard({ task, onEdit, onResearch }: TaskCardProps) {
 
         {/* Description Preview */}
         {task.description && (
-          <p className="text-xs text-gray-600 line-clamp-2 mb-3">
+          <p className="text-xs text-gray-600 mb-3 truncate">
             {task.description}
           </p>
         )}

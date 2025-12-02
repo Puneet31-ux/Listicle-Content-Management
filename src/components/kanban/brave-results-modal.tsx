@@ -13,6 +13,8 @@ interface BraveResult {
   title: string
   url: string
   description: string
+  extraSnippets?: string[]
+  deepResults?: Array<{ title: string; description: string }>
 }
 
 interface BraveResultsModalProps {
@@ -22,6 +24,7 @@ interface BraveResultsModalProps {
   results: BraveResult[]
   keywords?: string[]
   isLoading?: boolean
+  searchQuery?: string
 }
 
 export function BraveResultsModal({
@@ -31,15 +34,16 @@ export function BraveResultsModal({
   results,
   keywords = [],
   isLoading = false,
+  searchQuery,
 }: BraveResultsModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="overflow-hidden flex flex-col p-0 gap-0"
         style={{
-          width: '450px',
+          width: '550px',
           maxWidth: '95%',
-          maxHeight: '500px',
+          maxHeight: '85vh',
           backgroundColor: '#f9fafb',
           color: '#111',
           borderRadius: '12px',
@@ -53,6 +57,11 @@ export function BraveResultsModal({
             Brave Search Results
           </DialogTitle>
           <p className="text-xs text-gray-600 mt-1">{taskTitle}</p>
+          {searchQuery && searchQuery !== taskTitle && (
+            <p className="text-xs text-indigo-600 mt-1.5 italic">
+              Search: "{searchQuery}"
+            </p>
+          )}
         </div>
 
         {/* Content */}
@@ -107,7 +116,33 @@ export function BraveResultsModal({
                         <p className="text-xs text-gray-600 mb-2 line-clamp-2">
                           {result.description}
                         </p>
-                        <p className="text-xs text-gray-400 truncate">
+
+                        {/* Display extra content snippets */}
+                        {result.extraSnippets && result.extraSnippets.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-gray-100 space-y-1.5">
+                            <p className="text-xs font-semibold text-gray-700">Content Excerpts:</p>
+                            {result.extraSnippets.slice(0, 3).map((snippet, snippetIdx) => (
+                              <div key={snippetIdx} className="bg-indigo-50 border-l-2 border-indigo-400 pl-2 py-1">
+                                <p className="text-xs text-gray-700 italic">"{snippet}"</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Display deep results if available */}
+                        {result.deepResults && result.deepResults.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
+                            <p className="text-xs font-semibold text-gray-700">Related Sections:</p>
+                            {result.deepResults.slice(0, 2).map((deep, deepIdx) => (
+                              <div key={deepIdx} className="bg-blue-50 pl-2 py-1">
+                                <p className="text-xs font-medium text-blue-700">{deep.title}</p>
+                                <p className="text-xs text-gray-600 line-clamp-1">{deep.description}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <p className="text-xs text-gray-400 truncate mt-2">
                           {result.url}
                         </p>
                       </a>

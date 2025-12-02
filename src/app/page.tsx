@@ -5,6 +5,7 @@ import { Board } from '@/components/kanban/board'
 import { TaskDialog } from '@/components/kanban/task-dialog'
 import { ColumnDialog } from '@/components/kanban/column-dialog'
 import { BraveResultsModal } from '@/components/kanban/brave-results-modal'
+import { WarpSkillModal } from '@/components/kanban/warp-skill-modal'
 import { Button } from '@/components/ui/button'
 import { Task, Column } from '@/lib/types'
 import { useKanbanStore } from '@/store/kanban-store'
@@ -26,9 +27,15 @@ export default function Home() {
   const [braveKeywords, setBraveKeywords] = useState<string[]>([])
   const [braveLoading, setBraveLoading] = useState(false)
   const [braveTaskTitle, setBraveTaskTitle] = useState('')
+  const [braveSearchQuery, setBraveSearchQuery] = useState('')
+  const [warpModalOpen, setWarpModalOpen] = useState(false)
+  const [warpCurrentTask, setWarpCurrentTask] = useState<Task | undefined>()
 
   const setTaskResearchLoading = useKanbanStore((state) => state.setTaskResearchLoading)
   const setTaskResearch = useKanbanStore((state) => state.setTaskResearch)
+  const setTaskWarpLoading = useKanbanStore((state) => state.setTaskWarpLoading)
+  const addWarpMessage = useKanbanStore((state) => state.addWarpMessage)
+  const clearWarpConversation = useKanbanStore((state) => state.clearWarpConversation)
 
   const handleAddTask = (columnId: string) => {
     setSelectedTask(undefined)
@@ -116,6 +123,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           topic: task.title,
+          braveInput: task.braveInput,
         }),
       })
 
@@ -127,6 +135,7 @@ export default function Home() {
       const data = await response.json()
       setBraveResults(data.results || [])
       setBraveKeywords(data.keywords || [])
+      setBraveSearchQuery(data.query || task.title)
     } catch (error) {
       console.error('Brave search error:', error)
       setBraveModalOpen(false)
@@ -137,6 +146,76 @@ export default function Home() {
       )
     } finally {
       setBraveLoading(false)
+    }
+  }
+
+  const handleWarpSkill = (task: Task) => {
+    setWarpCurrentTask(task)
+    setWarpModalOpen(true)
+
+    // If no messages yet, auto-send the initial message with task details
+    if (!task.warpSkill?.messages || task.warpSkill.messages.length === 0) {
+      handleWarpSendMessage(
+        task,
+        `I want to analyze this listicle offer:\n\nTitle: ${task.title}\nDescription: ${task.description || 'N/A'}\n\nPlease help me understand the target audience, pain points, and how to write compelling copy.`
+      )
+    }
+  }
+
+  const handleWarpSendMessage = async (task: Task, message: string) => {
+    if (!task) return
+
+    try {
+      // Add user message to store
+      addWarpMessage(task.id, { role: 'user', content: message })
+      setTaskWarpLoading(task.id, true)
+
+      // Build messages array for API
+      const messages = [
+        ...(task.warpSkill?.messages || []),
+        { role: 'user' as const, content: message },
+      ]
+
+      const response = await fetch('/api/warp-skill', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages,
+          title: task.title,
+          description: task.description,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'WARP skill request failed')
+      }
+
+      const data = await response.json()
+
+      // Add assistant response to store
+      addWarpMessage(task.id, {
+        role: 'assistant',
+        content: data.message,
+      })
+    } catch (error) {
+      console.error('WARP Skill error:', error)
+      alert(
+        '❌ ' +
+          (error instanceof Error
+            ? error.message
+            : 'Failed to analyze offer. Please check your Anthropic API key.')
+      )
+    } finally {
+      setTaskWarpLoading(task.id, false)
+    }
+  }
+
+  const handleWarpClearConversation = () => {
+    if (warpCurrentTask) {
+      clearWarpConversation(warpCurrentTask.id)
     }
   }
 
@@ -181,6 +260,7 @@ export default function Home() {
           onEditTask={handleEditTask}
           onResearchTask={handleResearchTask}
           onBraveSearch={handleBraveSearch}
+          onWarpSkill={handleWarpSkill}
           onEditColumn={handleEditColumn}
         />
       </main>
@@ -206,6 +286,19 @@ export default function Home() {
         results={braveResults}
         keywords={braveKeywords}
         isLoading={braveLoading}
+        searchQuery={braveSearchQuery}
+      />
+
+      <WarpSkillModal
+        open={warpModalOpen}
+        onOpenChange={setWarpModalOpen}
+        taskTitle={warpCurrentTask?.title || ''}
+        messages={warpCurrentTask?.warpSkill?.messages || []}
+        isLoading={warpCurrentTask?.warpSkill?.isLoading || false}
+        onSendMessage={(message) =>
+          warpCurrentTask && handleWarpSendMessage(warpCurrentTask, message)
+        }
+        onClearConversation={handleWarpClearConversation}
       />
     </div>
   )

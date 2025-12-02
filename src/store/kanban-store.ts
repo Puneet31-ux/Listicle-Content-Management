@@ -180,6 +180,74 @@ export const useKanbanStore = create<KanbanState>()(
               : task
           ),
         })),
+
+      // WARP Skill operations
+      setTaskWarpLoading: (taskId, isLoading) =>
+        set((state) => ({
+          tasks: state.tasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  warpSkill: {
+                    ...(task.warpSkill || { messages: [] }),
+                    isLoading,
+                  },
+                }
+              : task
+          ),
+        })),
+
+      addWarpMessage: (taskId, message) =>
+        set((state) => ({
+          tasks: state.tasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  warpSkill: {
+                    ...(task.warpSkill || { messages: [] }),
+                    messages: [
+                      ...(task.warpSkill?.messages || []),
+                      {
+                        ...message,
+                        timestamp: new Date().toISOString(),
+                      },
+                    ],
+                    lastUpdated: new Date().toISOString(),
+                  },
+                }
+              : task
+          ),
+        })),
+
+      setTaskWarpCategory: (taskId, category) =>
+        set((state) => ({
+          tasks: state.tasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  warpSkill: {
+                    ...(task.warpSkill || { messages: [] }),
+                    category,
+                  },
+                }
+              : task
+          ),
+        })),
+
+      clearWarpConversation: (taskId) =>
+        set((state) => ({
+          tasks: state.tasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  warpSkill: {
+                    messages: [],
+                    isLoading: false,
+                  },
+                }
+              : task
+          ),
+        })),
     }),
     {
       name: STORAGE_KEY,

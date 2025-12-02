@@ -9,6 +9,7 @@ export interface Task {
   createdAt: string
   priority?: TaskPriority
   assignee?: string // Initials for avatar
+  braveInput?: string // Specific input for Brave search to find relevant articles
 
   // AI Research fields
   aiResearch?: {
@@ -19,9 +20,23 @@ export interface Task {
       audience_pain_points: string[]
       seo_keywords: string[]
       trust_builders: string[]
+      targeting_angles?: string[]
+      cta_strategies?: string[]
     }
     researchedAt: string
     isLoading?: boolean
+  }
+
+  // WARP Skill fields
+  warpSkill?: {
+    messages: Array<{
+      role: 'user' | 'assistant'
+      content: string
+      timestamp: string
+    }>
+    category?: string // Financial, Home Services, etc.
+    isLoading?: boolean
+    lastUpdated?: string
   }
 }
 
@@ -51,4 +66,10 @@ export interface KanbanState {
   // AI Research
   setTaskResearchLoading: (taskId: string, isLoading: boolean) => void
   setTaskResearch: (taskId: string, research: Task['aiResearch']) => void
+
+  // WARP Skill
+  setTaskWarpLoading: (taskId: string, isLoading: boolean) => void
+  addWarpMessage: (taskId: string, message: { role: 'user' | 'assistant'; content: string }) => void
+  setTaskWarpCategory: (taskId: string, category: string) => void
+  clearWarpConversation: (taskId: string) => void
 }

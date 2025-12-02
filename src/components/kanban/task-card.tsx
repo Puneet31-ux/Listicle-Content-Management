@@ -13,9 +13,10 @@ interface TaskCardProps {
   onEdit: (task: Task) => void
   onResearch: (task: Task) => void
   onBraveSearch?: (task: Task) => void
+  onWarpSkill?: (task: Task) => void
 }
 
-export function TaskCard({ task, onEdit, onResearch, onBraveSearch }: TaskCardProps) {
+export function TaskCard({ task, onEdit, onResearch, onBraveSearch, onWarpSkill }: TaskCardProps) {
   const {
     attributes,
     listeners,
@@ -57,12 +58,13 @@ export function TaskCard({ task, onEdit, onResearch, onBraveSearch }: TaskCardPr
       initial={{ opacity: 0, y: 10, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
-      whileHover={{ scale: 1.02, y: -4 }}
+      whileHover={{ scale: 1.01, y: -2 }}
       className={cn(
-        'group bg-white rounded-lg transition-all duration-200 cursor-pointer',
-        'border-l-4 max-h-[120px] overflow-hidden',
-        'w-full',
-        isDragging ? 'opacity-50 shadow-2xl scale-105' : 'shadow-sm hover:shadow-xl',
+        'group bg-gray-50 rounded-lg transition-all duration-200 cursor-pointer mb-3',
+        'border border-gray-300 overflow-hidden',
+        'w-full shadow-sm hover:shadow-lg hover:bg-white',
+        'border-l-4',
+        isDragging && 'opacity-50 shadow-2xl scale-105 rotate-2',
         priority === 'high' && 'border-l-red-500',
         priority === 'normal' && 'border-l-blue-500',
         priority === 'low' && 'border-l-gray-400'
@@ -71,8 +73,8 @@ export function TaskCard({ task, onEdit, onResearch, onBraveSearch }: TaskCardPr
       {...attributes}
       {...listeners}
     >
-      {/* Card Header */}
-      <div className="p-4 pb-3">
+      {/* Card Content */}
+      <div className="p-4">
         <div className="flex items-start justify-between mb-2">
           {/* Avatar Circle */}
           <div
@@ -170,16 +172,76 @@ export function TaskCard({ task, onEdit, onResearch, onBraveSearch }: TaskCardPr
                 <span>Brave Results</span>
               </button>
             )}
+
+            {/* WARP Skill Button - Analyze Offer */}
+            {onWarpSkill && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onWarpSkill(task)
+                }}
+                disabled={task.warpSkill?.isLoading}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200',
+                  task.warpSkill?.isLoading
+                    ? 'bg-purple-100 text-purple-700 cursor-wait'
+                    : 'bg-gradient-to-r from-purple-500 to-pink-600 text-white hover:from-purple-600 hover:to-pink-700 hover:scale-[1.02] shadow-sm hover:shadow-md'
+                )}
+                title="Analyze Offer with WARP Skill"
+              >
+                {task.warpSkill?.isLoading ? (
+                  <>
+                    <svg
+                      className="w-3.5 h-3.5 animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    <span>Analyzing...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                      />
+                    </svg>
+                    <span>Analyze Offer</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
 
         {/* Task Title */}
-        <h4 className="text-sm font-semibold text-gray-900 mb-1 truncate">
+        <h4 className="text-sm font-semibold text-gray-900 mb-2 line-clamp-1">
           {task.title}
         </h4>
 
         {/* Priority Badge */}
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-2">
           <span
             className={cn(
               'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
@@ -193,7 +255,7 @@ export function TaskCard({ task, onEdit, onResearch, onBraveSearch }: TaskCardPr
 
         {/* Description Preview */}
         {task.description && (
-          <p className="text-xs text-gray-600 mb-3 truncate">
+          <p className="text-xs text-gray-600 mb-2 line-clamp-2">
             {task.description}
           </p>
         )}

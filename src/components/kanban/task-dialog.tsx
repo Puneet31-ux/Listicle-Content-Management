@@ -34,6 +34,7 @@ export function TaskDialog({
 }: TaskDialogProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [braveInput, setBraveInput] = useState('')
   const [selectedColumnId, setSelectedColumnId] = useState('')
   const [priority, setPriority] = useState<'low' | 'normal' | 'high'>('normal')
   const [assignee, setAssignee] = useState('')
@@ -49,12 +50,14 @@ export function TaskDialog({
     if (task) {
       setTitle(task.title)
       setDescription(task.description || '')
+      setBraveInput(task.braveInput || '')
       setSelectedColumnId(task.columnId)
       setPriority(task.priority || 'normal')
       setAssignee(task.assignee || '')
     } else if (columnId) {
       setTitle('')
       setDescription('')
+      setBraveInput('')
       setSelectedColumnId(columnId)
       setPriority('normal')
       setAssignee('')
@@ -68,6 +71,7 @@ export function TaskDialog({
       updateTask(task.id, {
         title: title.trim(),
         description: description.trim(),
+        braveInput: braveInput.trim() || undefined,
         columnId: selectedColumnId,
         priority,
         assignee: assignee.trim() || undefined,
@@ -76,6 +80,7 @@ export function TaskDialog({
       addTask({
         title: title.trim(),
         description: description.trim(),
+        braveInput: braveInput.trim() || undefined,
         columnId: selectedColumnId,
         priority,
         assignee: assignee.trim() || undefined,
@@ -229,6 +234,29 @@ export function TaskDialog({
             />
           </div>
 
+          {/* Brave Search Input */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium text-gray-700">
+              Brave Search Query
+              <span className="ml-1 text-xs font-normal text-gray-500">(for finding relevant articles)</span>
+            </label>
+            <Textarea
+              value={braveInput}
+              onChange={(e) => setBraveInput(e.target.value)}
+              placeholder="e.g., 'recent listicles about debt relief programs 2024' or 'best credit card debt consolidation articles'"
+              rows={2}
+              className="text-sm resize-none bg-white border-gray-300 text-gray-900 placeholder:text-gray-400"
+              style={{
+                padding: '8px',
+                borderRadius: '6px',
+                border: '1px solid #ccc',
+              }}
+            />
+            <p className="text-xs text-gray-500">
+              Specify what you want to find. The more specific, the better the results.
+            </p>
+          </div>
+
           {/* AI Research Display */}
           {task?.aiResearch && !task.aiResearch.isLoading && (
             <div className="space-y-4 pt-4 border-t border-gray-200">
@@ -380,6 +408,40 @@ export function TaskDialog({
                         )}
                       </ul>
                     </div>
+
+                    {/* Targeting Angles */}
+                    {task.aiResearch.backstory.targeting_angles && task.aiResearch.backstory.targeting_angles.length > 0 && (
+                      <div>
+                        <h5 className="text-xs font-semibold text-indigo-700 mb-2">
+                          🎯 Targeting Angles
+                        </h5>
+                        <ul className="list-disc list-inside space-y-1">
+                          {task.aiResearch.backstory.targeting_angles.map(
+                            (item, i) => (
+                              <li key={i} className="text-xs text-indigo-600 font-medium">
+                                {item}
+                              </li>
+                            )
+                          )}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* CTA Strategies */}
+                    {task.aiResearch.backstory.cta_strategies && task.aiResearch.backstory.cta_strategies.length > 0 && (
+                      <div>
+                        <h5 className="text-xs font-semibold text-green-700 mb-2">
+                          💬 CTA Strategies
+                        </h5>
+                        <div className="flex flex-wrap gap-2">
+                          {task.aiResearch.backstory.cta_strategies.map((cta, i) => (
+                            <Badge key={i} variant="default" className="text-xs bg-green-100 text-green-800 border-green-300">
+                              {cta}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

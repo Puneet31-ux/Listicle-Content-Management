@@ -37,7 +37,41 @@ export interface Task {
     category?: string // Financial, Home Services, etc.
     isLoading?: boolean
     lastUpdated?: string
+    // Layer 2: Copy Generation
+    copyVariations?: CopyVariation[]
+    copyMetadata?: CopyGenerationMetadata
+    isCopyGenerating?: boolean
+    copyGeneratedAt?: string
   }
+}
+
+export interface CopyVariation {
+  id: string
+  strategicApproach: string
+  headline: string
+  subheadline: string
+  openingHook: string
+  bodyCopy: string
+  valueArticulation: string
+  qualificationLanguage: string
+  socialProofElement: string
+  ctaSection: {
+    interactiveElement: string
+    buttonText: string
+    riskReversal: string
+  }
+  rationale: string
+  emotionalTemperature: 'high' | 'medium' | 'low'
+  ctaType: string
+  informationDensity: 'brief' | 'moderate' | 'detailed'
+  bestFor: string
+}
+
+export interface CopyGenerationMetadata {
+  generatedAt: string
+  category?: string
+  researchSummary?: string
+  conversationContext: string
 }
 
 export interface Column {
@@ -72,4 +106,9 @@ export interface KanbanState {
   addWarpMessage: (taskId: string, message: { role: 'user' | 'assistant'; content: string }) => void
   setTaskWarpCategory: (taskId: string, category: string) => void
   clearWarpConversation: (taskId: string) => void
+
+  // Layer 2: Copy Generation
+  setTaskCopyGenerating: (taskId: string, isGenerating: boolean) => void
+  setTaskCopyVariations: (taskId: string, variations: CopyVariation[], metadata: CopyGenerationMetadata) => void
+  clearTaskCopyVariations: (taskId: string) => void
 }

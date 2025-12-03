@@ -248,6 +248,58 @@ export const useKanbanStore = create<KanbanState>()(
               : task
           ),
         })),
+
+      // Layer 2: Copy Generation operations
+      setTaskCopyGenerating: (taskId, isGenerating) =>
+        set((state) => ({
+          tasks: state.tasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  warpSkill: {
+                    ...(task.warpSkill || { messages: [] }),
+                    isCopyGenerating: isGenerating,
+                  },
+                }
+              : task
+          ),
+        })),
+
+      setTaskCopyVariations: (taskId, variations, metadata) =>
+        set((state) => ({
+          tasks: state.tasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  warpSkill: {
+                    ...(task.warpSkill || { messages: [] }),
+                    copyVariations: variations,
+                    copyMetadata: metadata,
+                    isCopyGenerating: false,
+                    copyGeneratedAt: new Date().toISOString(),
+                  },
+                }
+              : task
+          ),
+        })),
+
+      clearTaskCopyVariations: (taskId) =>
+        set((state) => ({
+          tasks: state.tasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  warpSkill: {
+                    ...(task.warpSkill || { messages: [] }),
+                    copyVariations: undefined,
+                    copyMetadata: undefined,
+                    isCopyGenerating: false,
+                    copyGeneratedAt: undefined,
+                  },
+                }
+              : task
+          ),
+        })),
     }),
     {
       name: STORAGE_KEY,

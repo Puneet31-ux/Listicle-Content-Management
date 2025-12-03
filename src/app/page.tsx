@@ -36,6 +36,10 @@ export default function Home() {
   const setTaskWarpLoading = useKanbanStore((state) => state.setTaskWarpLoading)
   const addWarpMessage = useKanbanStore((state) => state.addWarpMessage)
   const clearWarpConversation = useKanbanStore((state) => state.clearWarpConversation)
+  const setTaskCopyGenerating = useKanbanStore((state) => state.setTaskCopyGenerating)
+  const setTaskCopyVariations = useKanbanStore((state) => state.setTaskCopyVariations)
+  const moveTask = useKanbanStore((state) => state.moveTask)
+  const tasks = useKanbanStore((state) => state.tasks)
 
   const handleAddTask = (columnId: string) => {
     setSelectedTask(undefined)
@@ -219,6 +223,54 @@ export default function Home() {
     }
   }
 
+  const handleGenerateCopy = async (task: Task) => {
+    // Validate min 5 messages
+    if (!task.warpSkill?.messages || task.warpSkill.messages.length < 5) {
+      alert('Need at least 5 messages in the conversation before generating copy.')
+      return
+    }
+
+    try {
+      // Set loading state
+      setTaskCopyGenerating(task.id, true)
+
+      // Auto-move to "in-progress" if not already there
+      if (task.columnId !== 'in-progress') {
+        const inProgressTasks = tasks.filter(t => t.columnId === 'in-progress')
+        const nextOrder = inProgressTasks.length > 0
+          ? Math.max(...inProgressTasks.map(t => t.order)) + 1
+          : 0
+        moveTask(task.id, 'in-progress', nextOrder)
+      }
+
+      // Call Layer 2 API
+      const response = await fetch('/api/write-listicle-copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationHistory: task.warpSkill.messages,
+          taskTitle: task.title,
+          taskDescription: task.description,
+          category: task.warpSkill.category,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Copy generation failed')
+      }
+
+      const data = await response.json()
+      setTaskCopyVariations(task.id, data.variations, data.metadata)
+      alert(`✅ Successfully generated ${data.variations.length} copy variations!`)
+
+    } catch (error) {
+      console.error('Copy generation error:', error)
+      alert('❌ ' + (error instanceof Error ? error.message : 'Failed to generate copy. Please check your Anthropic API key.'))
+      setTaskCopyGenerating(task.id, false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -299,6 +351,11 @@ export default function Home() {
           warpCurrentTask && handleWarpSendMessage(warpCurrentTask, message)
         }
         onClearConversation={handleWarpClearConversation}
+        copyVariations={warpCurrentTask?.warpSkill?.copyVariations}
+        copyMetadata={warpCurrentTask?.warpSkill?.copyMetadata}
+        isCopyGenerating={warpCurrentTask?.warpSkill?.isCopyGenerating || false}
+        onGenerateCopy={() => warpCurrentTask && handleGenerateCopy(warpCurrentTask)}
+        canGenerateCopy={(warpCurrentTask?.warpSkill?.messages?.length || 0) >= 5}
       />
     </div>
   )

@@ -734,6 +734,135 @@
         </step>
       </steps>
     </full-automation-workflow>
+
+    <user-approval-workflow>
+      <description>Explicit user confirmation required before creating worktrees and pushing to repos</description>
+      <steps>
+        <step number="1">Agent detects changes in user settings</step>
+        <step number="2">Agent reads sync-manifest.json to find linked repos</step>
+        <step number="3">Agent displays detailed approval prompt:
+          "Ready to sync to linked repos:
+
+          📦 Changes detected in {group-name} v{old-version} → v{new-version}
+
+          Repos that will receive worktrees and updates:
+          ✓ Listicle-Content-Management
+            - Will create worktree: Listicle-Content-Management-sync
+            - Changes: {list of changes}
+            - PR will be created automatically
+
+          ✓ other-project-repo-1
+            - Will create worktree: other-project-repo-1-sync
+            - Changes: {list of changes}
+            - PR will be created automatically
+
+          Create worktrees and push to these repos?
+          [Yes to all] [Select specific] [Show details] [Cancel]"
+        </step>
+        <step number="4">User selects option:
+          - "Yes to all": Proceed with all repos
+          - "Select specific": Show checkboxes for each repo
+          - "Show details": Display file-level diff for each repo
+          - "Cancel": Abort sync operation
+        </step>
+        <step number="5">Only after approval, agent creates worktrees and pushes</step>
+      </steps>
+    </user-approval-workflow>
+
+    <permission-system>
+      <description>Maintainer-only modification with unauthorized change detection and alerts</description>
+
+      <maintainer-permissions>
+        <maintainer>
+          <name>Lizzie</name>
+          <role>Source of Truth</role>
+          <permissions>
+            <permission>canModifyManifest</permission>
+            <permission>canModifySyncGroups</permission>
+            <permission>canApprovePRs</permission>
+            <permission>canMergeWithoutReview</permission>
+          </permissions>
+        </maintainer>
+      </maintainer-permissions>
+
+      <protected-files>
+        <file name=".claude/sync-manifest.json">
+          <protection>maintainer-only</protection>
+          <action-on-unauthorized>alert-and-block</action-on-unauthorized>
+        </file>
+        <file name=".claude/settings.json">
+          <protection>maintainer-only</protection>
+          <action-on-unauthorized>alert-and-block</action-on-unauthorized>
+        </file>
+        <file name=".claude/skills/internal-install-helper.md">
+          <protection>maintainer-only</protection>
+          <action-on-unauthorized>alert-and-block</action-on-unauthorized>
+        </file>
+        <file name=".claude/docs/INTERNAL-INSTALL-HELPER.xml">
+          <protection>maintainer-only</protection>
+          <action-on-unauthorized>alert-and-block</action-on-unauthorized>
+        </file>
+      </protected-files>
+
+      <unauthorized-change-detection>
+        <trigger>When PR contains changes to protected files</trigger>
+        <detection>
+          <step number="1">Check git commit author against allowedModifiers list</step>
+          <step number="2">If author NOT in allowedModifiers: Flag as unauthorized</step>
+          <step number="3">Parse changed files and identify protected files</step>
+        </detection>
+        <alert-maintainer>
+          <method>GitHub PR comment</method>
+          <message>
+            ⚠️ UNAUTHORIZED CHANGE DETECTED
+
+            **Author**: {commit-author}
+            **Files Modified**:
+            {list-of-protected-files}
+
+            **Alert**: Only {maintainer-name} is authorized to modify these sync system files.
+
+            **Action Required**:
+            1. Review the proposed changes carefully
+            2. If changes are valid: Extract them and apply via your own commit
+            3. If changes are invalid: Reject the PR with explanation
+            4. Never merge PRs with unauthorized sync file changes directly
+
+            **Protected Files**:
+            - .claude/sync-manifest.json
+            - .claude/settings.json
+            - .claude/skills/internal-install-helper.md
+            - .claude/docs/INTERNAL-INSTALL-HELPER.xml
+
+            **Rationale**: These files control the sync system behavior across all team members. Unauthorized changes could:
+            - Break the sync system
+            - Introduce security vulnerabilities
+            - Cause data loss in user settings
+            - Create conflicts across multiple repos
+
+            @{maintainer-github-handle} - Review required
+          </message>
+          <labels>["needs-maintainer-review", "unauthorized-sync-change", "do-not-merge"]</labels>
+          <set-review-required>true</set-review-required>
+          <block-auto-merge>true</block-auto-merge>
+        </alert-maintainer>
+      </unauthorized-change-detection>
+
+      <agent-instructions-for-detection>
+        <instruction priority="critical">
+          When reviewing PRs, ALWAYS check if protected files are modified
+        </instruction>
+        <instruction priority="critical">
+          If protected files modified by non-maintainer: Post alert comment immediately
+        </instruction>
+        <instruction priority="critical">
+          Set "needs-maintainer-review" label and request review from maintainer
+        </instruction>
+        <instruction priority="high">
+          Suggest to unauthorized author: "Please propose changes via issue for maintainer review"
+        </instruction>
+      </agent-instructions-for-detection>
+    </permission-system>
   </automation>
 
   <testing-scenarios>

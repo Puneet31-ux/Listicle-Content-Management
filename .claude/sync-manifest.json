@@ -6,7 +6,28 @@
   "maintainer": {
     "name": "Lizzie",
     "email": "lizzie@example.com",
-    "isSourceOfTruth": true
+    "isSourceOfTruth": true,
+    "permissions": {
+      "canModifyManifest": true,
+      "canModifySyncGroups": true,
+      "requiresApprovalFrom": "Lizzie"
+    }
+  },
+  "permissions": {
+    "allowedModifiers": ["Lizzie"],
+    "unauthorizedChangeHandling": {
+      "enabled": true,
+      "alertMaintainer": true,
+      "requireApprovalBeforeMerge": true,
+      "alertMessage": "⚠️ UNAUTHORIZED CHANGE DETECTED: User '{author}' attempted to modify sync files. Review changes before merging.",
+      "protectedFiles": [
+        ".claude/sync-manifest.json",
+        ".claude/settings.json",
+        ".claude/skills/internal-install-helper.md",
+        ".claude/docs/INTERNAL-INSTALL-HELPER.xml"
+      ],
+      "actionOnUnauthorized": "create-review-required-pr"
+    }
   },
   "syncGroups": {
     "internal-install-helper": {

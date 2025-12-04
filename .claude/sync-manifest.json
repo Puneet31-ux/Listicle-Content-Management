@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "lastUpdated": "2025-12-04T15:06:00Z",
+  "author": "Lizzie",
+  "maintainer": {
+    "name": "Lizzie",
+    "email": "lizzie@example.com",
+    "isSourceOfTruth": true
+  },
+  "syncGroups": {
+    "internal-install-helper": {
+      "version": "1.0.0",
+      "description": "Intelligent sync system for managing user features and workflows across team members and repositories",
+      "category": "workflow-automation",
+      "tags": ["sync", "collaboration", "git-worktree", "team-workflows"],
+      "projectFiles": [
+        ".claude/sync-manifest.json",
+        ".claude/commands/sync-push.md",
+        ".claude/commands/sync-pull.md",
+        ".claude/commands/sync-status.md",
+        ".claude/commands/sync-diff.md",
+        ".claude/commands/features-list.md",
+        ".claude/commands/features-add.md",
+        ".claude/commands/features-share.md",
+        ".claude/commands/features-discover.md",
+        ".claude/commands/features-organize.md",
+        ".claude/skills/internal-install-helper.md",
+        ".claude/docs/INTERNAL-INSTALL-HELPER.xml",
+        ".claude/docs/SYNC_SYSTEM.md",
+        ".claude/docs/WORKTREE_GUIDE.md"
+      ],
+      "userFiles": [
+        "~/.claude/settings.json (sync configuration and user features registry)",
+        "~/.claude/features/ (user feature storage directory)",
+        "~/.claude/sync-registry.json (master registry of all sync operations)"
+      ],
+      "linkedRepos": [
+        "Listicle-Content-Management"
+      ],
+      "dependencies": [],
+      "checksum": {
+        "algorithm": "sha256",
+        "manifest": "",
+        "files": {}
+      },
+      "changelog": [
+        {
+          "version": "1.0.0",
+          "date": "2025-12-04",
+          "author": "Lizzie",
+          "type": "feature",
+          "changes": "Initial release of Internal Install Helper system with bidirectional sync, favorites management, and feature discovery"
+        }
+      ],
+      "metadata": {
+        "createdAt": "2025-12-04T15:06:00Z",
+        "updatedAt": "2025-12-04T15:06:00Z",
+        "status": "active",
+        "maturity": "beta",
+        "license": "MIT"
+      }
+    }
+  },
+  "config": {
+    "syncStrategy": "on-demand-worktree",
+    "worktreeNamingPattern": "{repo-name}-sync",
+    "branchNamingPattern": "sync/{group-name}-v{version}",
+    "commitMessagePattern": "sync: {action} {group-name} v{version} by {author}",
+    "autoSync": {
+      "enabled": true,
+      "requireConfirmation": true,
+      "notifyTeamOnUpdate": true
+    },
+    "versioning": {
+      "scheme": "semver",
+      "breakingChangeBehavior": "require-explicit-approval",
+      "minorChangeBehavior": "show-notification",
+      "patchChangeBehavior": "auto-apply-if-enabled"
+    },
+    "backup": {
+      "enabled": true,
+      "format": "settings.json.backup-{timestamp}",
+      "retention": 10,
+      "location": "~/.claude/"
+    }
+  },
+  "readme": {
+    "overview": "The Internal Install Helper system provides intelligent bidirectional sync between user-level and project-level Claude Code configurations. It enables teams to share workflows, commands, and skills while maintaining individual customization.",
+    "quickStart": {
+      "forMaintainers": [
+        "1. Configure your ~/.claude/settings.json with sync.role='maintainer' and sync.isSourceOfTruth=true",
+        "2. Create sync groups in ~/.claude/features/",
+        "3. Use /sync-push to share with linked repos",
+        "4. Team members get notified on git pull"
+      ],
+      "forTeamMembers": [
+        "1. Pull repo with git pull origin main",
+        "2. If sync updates available, agent shows friendly notification",
+        "3. Click [OK - Do it!] to sync to your user settings",
+        "4. Use /features-list to see all available features"
+      ]
+    },
+    "documentation": [
+      ".claude/docs/INTERNAL-INSTALL-HELPER.xml - Agent-facing documentation (XML for easy parsing)",
+      ".claude/docs/SYNC_SYSTEM.md - Team-facing documentation",
+      ".claude/docs/WORKTREE_GUIDE.md - User guide for contractors"
+    ]
+  }
+}

@@ -1,0 +1,586 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature-documentation>
+  <metadata>
+    <name>Internal Install Helper System</name>
+    <version>1.0.0</version>
+    <author>Lizzie</author>
+    <created>2025-12-04</created>
+    <purpose>Intelligent sync system for managing user features and workflows across team members and repositories</purpose>
+  </metadata>
+
+  <overview>
+    <description>
+      A bidirectional sync system that keeps git workflow configurations consistent across:
+      - User-level settings (~/.claude/settings.json)
+      - Project-level settings (.claude/settings.json in each repo)
+      - Multiple repositories
+      - Multiple team members (independent contractors)
+    </description>
+
+    <key-concepts>
+      <concept name="Source of Truth">
+        <definition>The user's ~/.claude/settings.json serves as the master configuration for all user features</definition>
+        <role>Lizzie is configured as the maintainer with isSourceOfTruth: true</role>
+      </concept>
+
+      <concept name="Sync Groups">
+        <definition>Named collections of related commands, skills, and configurations that can be synced together</definition>
+        <examples>
+          <example>git-worktrees - Git worktree automation commands</example>
+          <example>code-review-helpers - PR review automation</example>
+          <example>testing-utilities - Test automation tools</example>
+        </examples>
+      </concept>
+
+      <concept name="Favorites">
+        <definition>Sync groups marked as favorites are automatically added to new repositories</definition>
+        <behavior>When creating new features, favorites can be bundled automatically</behavior>
+      </concept>
+
+      <concept name="Worktree Strategy">
+        <definition>Each repo uses a dedicated worktree for sync operations to isolate changes</definition>
+        <naming>Repo-name + "-sync" suffix (e.g., Listicle-Content-Management-sync)</naming>
+        <lifecycle>Created on-demand, can be cleaned up after merge</lifecycle>
+      </concept>
+    </key-concepts>
+  </overview>
+
+  <architecture>
+    <sync-flow direction="user-to-project">
+      <step number="1">Developer updates ~/.claude/settings.json with new worktree command</step>
+      <step number="2">Internal-Install-Helper detects change (via file watcher or on session start)</step>
+      <step number="3">Agent asks: "Push to linked project repos?" with list of repos</step>
+      <step number="4">User approves</step>
+      <step number="5">For each repo:
+        - Check if sync worktree exists, create if needed
+        - Update files in sync worktree's .claude/settings.json
+        - Update sync-manifest.json (version, changelog, timestamp, author)
+        - Commit with attribution
+        - Push branch
+        - Create PR or ask to merge
+      </step>
+      <step number="6">Agent confirms: "Pushed to N repos. PRs created."</step>
+    </sync-flow>
+
+    <sync-flow direction="project-to-user">
+      <step number="1">Team member pulls repo: git pull origin main</step>
+      <step number="2">Post-merge hook detects .claude/sync-manifest.json changed</step>
+      <step number="3">Agent compares checksums between project and user settings</step>
+      <step number="4">If different: Show friendly notification with changes</step>
+      <step number="5">If same: Silent (auto-check passed)</step>
+      <step number="6">User can: [OK - Do it!] [Show me what changed] [Skip for now]</step>
+      <step number="7">If approved:
+        - Create backup of ~/.claude/settings.json
+        - Merge new commands into user settings
+        - Update ~/.zshrc if needed
+        - Confirm sync complete
+      </step>
+    </sync-flow>
+
+    <file-structure>
+      <user-level path="~/.claude/">
+        <file name="settings.json" synced="false">
+          <description>Master config with all features - Source of truth</description>
+          <contains>
+            <item>sync.role = "maintainer"</item>
+            <item>sync.isSourceOfTruth = true</item>
+            <item>sync.linkedRepos = array of repo paths</item>
+            <item>sync.favoriteGroups = array of favorite sync group names</item>
+            <item>sync.userFeatures = registry of all features with metadata</item>
+          </contains>
+        </file>
+
+        <directory name="features/">
+          <description>Storage for user feature definitions</description>
+          <structure>
+            <subdirectory name="git-worktrees/">
+              <file name="commands/" type="directory">Command definitions</file>
+              <file name="metadata.json">Feature metadata (version, author, etc)</file>
+            </subdirectory>
+            <subdirectory name="code-review-helpers/">
+              <file name="commands/" type="directory">Command definitions</file>
+              <file name="metadata.json">Feature metadata</file>
+            </subdirectory>
+          </structure>
+        </directory>
+
+        <file name="sync-registry.json" synced="false">
+          <description>Master registry of all sync operations and history</description>
+        </file>
+      </user-level>
+
+      <project-level path=".claude/">
+        <file name="sync-manifest.json" synced="true">
+          <description>Source of truth for project-level sync configuration</description>
+          <contains>
+            <item>version - Manifest version</item>
+            <item>lastUpdated - ISO timestamp</item>
+            <item>author - Who made the last update</item>
+            <item>syncGroups - Object with all sync group definitions</item>
+            <item>Each sync group has: description, projectFiles, userFiles, linkedRepos, changelog</item>
+          </contains>
+        </file>
+
+        <file name="settings.json" synced="true">
+          <description>Project-level commands available to all team members</description>
+        </file>
+
+        <file name="settings.local.json" synced="false">
+          <description>User-specific overrides (gitignored)</description>
+        </file>
+
+        <directory name="commands/">
+          <description>Synced command definitions (markdown files)</description>
+        </directory>
+
+        <directory name="skills/">
+          <description>Auto-activation skills</description>
+          <file name="internal-install-helper.md">
+            <description>Main sync detector skill</description>
+          </file>
+        </directory>
+
+        <directory name="docs/">
+          <description>Documentation for team</description>
+          <file name="SYNC_SYSTEM.md">Team-facing documentation</file>
+          <file name="WORKTREE_GUIDE.md">User guide for contractors</file>
+          <file name="INTERNAL-INSTALL-HELPER.xml">Agent-facing documentation (this file)</file>
+        </directory>
+      </project-level>
+    </file-structure>
+  </architecture>
+
+  <commands>
+    <command name="sync-push">
+      <description>Push user-level changes to linked project repos</description>
+      <trigger>Manual via /sync-push or auto-detect on settings change</trigger>
+      <workflow>
+        <action>Detect changes in ~/.claude/settings.json</action>
+        <action>Compare with sync-manifest.json in linked repos</action>
+        <action>Show diff and ask for confirmation</action>
+        <action>Create/switch to sync worktree for each repo</action>
+        <action>Update files and commit with attribution</action>
+        <action>Push and create PR</action>
+      </workflow>
+    </command>
+
+    <command name="sync-pull">
+      <description>Pull project-level changes to user settings</description>
+      <trigger>Manual via /sync-pull or auto on git pull</trigger>
+      <workflow>
+        <action>Compare project .claude/settings.json with user ~/.claude/settings.json</action>
+        <action>Show diff with clear attribution (author, date, changes)</action>
+        <action>Create backup of user settings</action>
+        <action>Merge changes if approved</action>
+        <action>Update user feature registry</action>
+      </workflow>
+    </command>
+
+    <command name="sync-status">
+      <description>Check sync status across repos and user settings</description>
+      <workflow>
+        <action>List all linked repos</action>
+        <action>For each repo: compare versions, show sync state</action>
+        <action>Show user features: favorites, shared, personal, available</action>
+        <action>Show last sync check timestamp</action>
+      </workflow>
+    </command>
+
+    <command name="sync-diff">
+      <description>Show differences between user and project settings</description>
+      <workflow>
+        <action>Load both user and project settings</action>
+        <action>Compare each sync group</action>
+        <action>Show: NEW commands, UPDATED commands, REMOVED commands</action>
+        <action>Highlight breaking changes</action>
+      </workflow>
+    </command>
+
+    <command name="features-list">
+      <description>List all user features with status</description>
+      <output-format>
+        <section name="FAVORITES">Auto-add to new repos</section>
+        <section name="SHARED WITH TEAM">In sync system</section>
+        <section name="PERSONAL ONLY">Not shared - consider sharing?</section>
+        <section name="AVAILABLE FROM TEAM">Discovered from repos</section>
+        <section name="SUMMARY">Statistics and quick actions</section>
+      </output-format>
+    </command>
+
+    <command name="features-add">
+      <description>Add a new user feature to your collection</description>
+      <workflow>
+        <action>Ask: Where is this feature from? [Current repo] [Another repo] [Create new]</action>
+        <action>If "Another repo": Scan repo for sync-manifest.json, list available sync groups</action>
+        <action>If "Create new": Guide through creation process</action>
+        <action>Ask: Add to Favorites? Share with team repos?</action>
+        <action>If sharing: Select which linked repos</action>
+        <action>Copy feature to ~/.claude/settings.json</action>
+        <action>Create sync worktrees in selected repos</action>
+        <action>Update sync-manifest.json in each repo</action>
+        <action>Commit with attribution</action>
+      </workflow>
+    </command>
+
+    <command name="features-share">
+      <description>Share a personal feature with team repos</description>
+      <workflow>
+        <action>List personal-only features from user settings</action>
+        <action>Show usage stats if available</action>
+        <action>Ask which to share and to which repos</action>
+        <action>Create sync worktrees</action>
+        <action>Update sync-manifest.json</action>
+        <action>Move feature from "Personal Only" to "Shared with Team"</action>
+      </workflow>
+    </command>
+
+    <command name="features-discover">
+      <description>Discover features teammates have that you don't</description>
+      <workflow>
+        <action>Scan all linked repos for sync-manifest.json</action>
+        <action>Compare with user's ~/.claude/settings.json</action>
+        <action>Show features you don't have yet with metadata</action>
+        <action>Allow adding to user settings and/or favorites</action>
+      </workflow>
+    </command>
+
+    <command name="features-organize">
+      <description>Organize favorites and manage user features</description>
+      <workflow>
+        <action>Show interactive menu</action>
+        <action>Options: Add/remove favorites, update metadata, clean up unused, view dependencies</action>
+        <action>Update ~/.claude/settings.json based on changes</action>
+        <action>Optionally sync changes to linked repos</action>
+      </workflow>
+    </command>
+  </commands>
+
+  <user-flows>
+    <flow name="developer-updates-user-settings" type="push">
+      <scenario>Lizzie updates her ~/.claude/settings.json with a new worktree command</scenario>
+      <actors>
+        <actor role="developer">Lizzie (maintainer, source of truth)</actor>
+        <actor role="agent">Claude Code with internal-install-helper skill</actor>
+      </actors>
+      <steps>
+        <step>Lizzie edits ~/.claude/settings.json</step>
+        <step>Agent detects change via file watcher or session start</step>
+        <step>Agent: "Detected changes in git-worktrees sync group. Push to linked repos?"</step>
+        <step>Shows list of repos with sync manifest</step>
+        <step>Lizzie approves</step>
+        <step>Agent creates/switches to sync worktree for each repo</step>
+        <step>Agent updates .claude/settings.json in worktree</step>
+        <step>Agent updates sync-manifest.json with new version, changelog, timestamp</step>
+        <step>Agent commits: "sync: Update git-worktrees v1.1.0 by Lizzie - Added cleanup command"</step>
+        <step>Agent pushes branch and creates PR</step>
+        <step>Agent confirms: "Pushed to 2 repos. PRs created."</step>
+      </steps>
+    </flow>
+
+    <flow name="developer-joins-new-repo" type="initial-setup">
+      <scenario>Lizzie opens a new repository in Claude Code for the first time</scenario>
+      <steps>
+        <step>Lizzie opens new-repo in Claude Code</step>
+        <step>Agent checks for .claude/sync-manifest.json - NOT FOUND</step>
+        <step>Agent: "Welcome to new-repo! You have user-level workflows available: [list]. Add these to this repo?"</step>
+        <step>Options: [Add All] [Select...] [Skip] [Always Skip for this repo]</step>
+        <step>Lizzie: "Add All"</step>
+        <step>Agent creates sync worktree: new-repo-sync</step>
+        <step>Agent copies all sync group files to .claude/</step>
+        <step>Agent creates sync-manifest.json with linked repos list</step>
+        <step>Agent commits: "sync: Initial setup - Add git-worktrees v1.1.0 by Lizzie"</step>
+        <step>Agent pushes branch and creates PR</step>
+        <step>Agent asks: "Add this repo to your other linked repos?"</step>
+        <step>If yes: Updates sync-manifest.json in all linked repos to include new-repo</step>
+      </steps>
+    </flow>
+
+    <flow name="auto-add-favorites" type="auto">
+      <scenario>User has configured autoAddToNewRepos: true with favorite groups</scenario>
+      <configuration>
+        <setting>sync.autoAddToNewRepos = true</setting>
+        <setting>sync.favoriteGroups = ["git-worktrees", "code-review-helpers"]</setting>
+      </configuration>
+      <steps>
+        <step>User opens new repo</step>
+        <step>Agent detects new repo (no sync-manifest)</step>
+        <step>Agent silently creates sync setup</step>
+        <step>Agent: "Adding your favorite workflows to this repo..."</step>
+        <step>Agent auto-creates sync worktree and adds favorite groups</step>
+        <step>Agent: "Added git-worktrees + code-review-helpers to this repo!"</step>
+      </steps>
+    </flow>
+
+    <flow name="team-member-pulls-updates" type="pull">
+      <scenario>Contractor pulls repo and gets notification about new sync updates</scenario>
+      <actors>
+        <actor role="contractor">Team member (not maintainer)</actor>
+        <actor role="agent">Claude Code with internal-install-helper skill</actor>
+      </actors>
+      <steps>
+        <step>Contractor: git pull origin main</step>
+        <step>Post-merge hook detects .claude/sync-manifest.json changed</step>
+        <step>Agent compares project v1.1.0 with user's v1.0.0</step>
+        <step>Agent: "Hey! There are some hot new user features your team created and wants to share with you!"</step>
+        <step>Shows: package name, version, author, date, changes summary</step>
+        <step>Shows: Your local version vs Project version</step>
+        <step>Options: [OK - Do it!] [Show me what changed] [Skip for now]</step>
+        <step>If "Show me what changed": Display diff with NEW, UPDATED, REMOVED commands</step>
+        <step>If "OK": Create backup, merge changes, update user settings, confirm complete</step>
+      </steps>
+    </flow>
+
+    <flow name="first-time-user" type="pull">
+      <scenario>New contractor who hasn't set up sync system yet</scenario>
+      <steps>
+        <step>New contractor pulls repo with sync-manifest.json</step>
+        <step>Agent detects sync-manifest but no corresponding user settings</step>
+        <step>Agent: "Welcome! This repo has shared team workflows available: [details]"</step>
+        <step>Explains what they'll get and where it will be added</step>
+        <step>Options: [Yes - Add it!] [Tell me more] [No thanks]</step>
+        <step>If "Tell me more": Show detailed command list and explanation</step>
+        <step>If "Yes": Create backup (if exists), add sync group to user settings, record version</step>
+        <step>Agent: "Added! Try /worktree-create to get started."</step>
+      </steps>
+    </flow>
+
+    <flow name="already-up-to-date" type="pull">
+      <scenario>Team member pulls but already has latest version</scenario>
+      <steps>
+        <step>Contractor pulls repo</step>
+        <step>Agent compares checksums</step>
+        <step>Project v1.1.0 == User v1.1.0</step>
+        <step>Agent: (silent - no prompt shown to user)</step>
+        <step>Logs: "Sync check passed - already up to date"</step>
+      </steps>
+    </flow>
+
+    <flow name="add-feature-from-another-repo" type="import">
+      <scenario>Lizzie discovers a useful feature in external-repo-xyz and wants to add it</scenario>
+      <steps>
+        <step>Lizzie: /features-add</step>
+        <step>Agent: "Add a new user feature! Where is this feature from? [Current repo] [Another repo] [Create new]"</step>
+        <step>Lizzie: "Another repo"</step>
+        <step>Agent: "Enter the repo path or URL:"</step>
+        <step>Lizzie provides path: /Users/bobby/Documents/Github_II/external-repo-xyz</step>
+        <step>Agent scans repo, finds sync-manifest.json</step>
+        <step>Agent: "Found these sync groups: [list with versions and authors]"</step>
+        <step>Lizzie selects: code-review-helpers</step>
+        <step>Agent shows: version, author, description, commands included</step>
+        <step>Agent asks: "Add to Favorites? Share with your team repos?"</step>
+        <step>If sharing: Agent shows checkboxes for linked repos</step>
+        <step>Lizzie: "Yes (favorite), Yes (share), Select all"</step>
+        <step>Agent: Copies feature, adds to favorites, creates sync worktrees, updates manifests, commits</step>
+        <step>Agent: "Added code-review-helpers to: Your user settings (as favorite), Listicle-Content-Management, other-project-repo-1"</step>
+      </steps>
+    </flow>
+
+    <flow name="auto-include-favorites" type="bundle">
+      <scenario>When creating new feature, automatically bundle with favorites</scenario>
+      <steps>
+        <step>Lizzie creates new feature: ai-commit-messages</step>
+        <step>Lizzie: /features-add → Create new</step>
+        <step>Agent asks for name, description</step>
+        <step>Agent: "Your current favorites will also be included when sharing: [list]"</step>
+        <step>Agent: "This means any repo getting ai-commit-messages will also get your favorites! Include favorites automatically? [Yes] [No] [Select specific]"</step>
+        <step>Lizzie: "Yes"</step>
+        <step>Agent creates bundled sync group with ai-commit-messages + git-worktrees + code-review-helpers</step>
+        <step>When shared to team, all three are included as a package</step>
+      </steps>
+    </flow>
+
+    <flow name="suggest-personal-feature-to-share" type="proactive">
+      <scenario>Agent notices heavily-used personal feature and suggests sharing</scenario>
+      <trigger>Weekly check or on-demand</trigger>
+      <steps>
+        <step>Agent scans user features</step>
+        <step>Finds personal-snippets with 15 commands, 47 uses this month</step>
+        <step>Agent: "Hey Lizzie! I noticed you have some awesome personal features: personal-snippets v1.0.0 - 15 commands, 47 uses this month. Most used: /quick-format, /extract-imports. Your team might love this! [Share with team] [Keep private] [Tell me more]"</step>
+        <step>If "Share with team": Agent creates worktree in linked repos, updates sync-manifest, commits with attribution, notifies team</step>
+        <step>Feature moves from "Personal Only" to "Shared with Team" in registry</step>
+      </steps>
+    </flow>
+  </user-flows>
+
+  <safety-features>
+    <feature name="checksum-verification">
+      <description>SHA-256 checksums for each file and overall sync group</description>
+      <purpose>Detect if already up-to-date without full comparison</purpose>
+      <location>sync-manifest.json → syncGroups.{group-name}.checksum</location>
+    </feature>
+
+    <feature name="backup-before-sync">
+      <description>Automatic backup of user settings before any modification</description>
+      <format>~/.claude/settings.json.backup-YYYYMMDD-HHMMSS</format>
+      <retention>Keep last 10 backups, auto-cleanup older ones</retention>
+    </feature>
+
+    <feature name="conflict-resolution">
+      <description>Handle cases where user has local modifications</description>
+      <options>
+        <option>Keep your local version</option>
+        <option>Use project version</option>
+        <option>Merge both (manual)</option>
+        <option>Show diff first</option>
+      </options>
+    </feature>
+
+    <feature name="opt-out-mechanism">
+      <description>User can disable sync system or specific groups</description>
+      <location>.claude/settings.local.json (gitignored)</location>
+      <config-example>
+        sync.disabled = false
+        sync.groups.git-worktrees.autoPull = true
+        sync.groups.git-worktrees.requireConfirmation = true
+      </config-example>
+    </feature>
+
+    <feature name="version-strategy">
+      <description>Semantic versioning for sync groups</description>
+      <rules>
+        <rule>MAJOR version: Breaking changes (warn user, require explicit approval)</rule>
+        <rule>MINOR version: New features (show in notification)</rule>
+        <rule>PATCH version: Bug fixes (auto-apply if autoPull enabled)</rule>
+      </rules>
+    </feature>
+  </safety-features>
+
+  <implementation-phases>
+    <phase number="1" name="Foundation">
+      <task status="pending">Create sync-manifest.json schema</task>
+      <task status="pending">Build checksum comparison logic</task>
+      <task status="pending">Create internal-install-helper.md skill</task>
+      <task status="pending">Test basic detection</task>
+    </phase>
+
+    <phase number="2" name="User-to-Project Sync">
+      <task status="pending">Implement /sync-push command</task>
+      <task status="pending">Create worktree automation for pushing</task>
+      <task status="pending">Test pushing to multiple repos</task>
+      <task status="pending">Add changelog tracking</task>
+    </phase>
+
+    <phase number="3" name="Project-to-User Sync">
+      <task status="pending">Implement /sync-pull command</task>
+      <task status="pending">Add post-merge git hook</task>
+      <task status="pending">Build diff viewer</task>
+      <task status="pending">Add backup system</task>
+    </phase>
+
+    <phase number="4" name="Safety and UX">
+      <task status="pending">Add conflict resolution</task>
+      <task status="pending">Implement opt-out mechanism</task>
+      <task status="pending">Create user documentation</task>
+      <task status="pending">Add logging/audit trail</task>
+    </phase>
+
+    <phase number="5" name="Multi-Repo Management">
+      <task status="pending">Link multiple repos in manifest</task>
+      <task status="pending">Batch push/pull across repos</task>
+      <task status="pending">Central sync dashboard</task>
+      <task status="pending">Team sync status view</task>
+    </phase>
+  </implementation-phases>
+
+  <agent-instructions>
+    <instruction priority="high">
+      When user asks about sync system, parse this XML documentation to provide accurate answers
+    </instruction>
+
+    <instruction priority="high">
+      Always check checksums before prompting user - if already up to date, stay silent
+    </instruction>
+
+    <instruction priority="high">
+      Always create backups before modifying user settings - use timestamp format YYYYMMDD-HHMMSS
+    </instruction>
+
+    <instruction priority="medium">
+      When showing changes, use clear attribution: author name, date, version, specific changes
+    </instruction>
+
+    <instruction priority="medium">
+      Use friendly, conversational language: "Hey! Hot new features..." not "Sync manifest updated"
+    </instruction>
+
+    <instruction priority="low">
+      Suggest sharing personal features weekly if usage stats show high value
+    </instruction>
+
+    <query-examples>
+      <example>
+        <user-query>How does the sync system work?</user-query>
+        <agent-response>Parse overview and sync-flow sections, explain bidirectional sync</agent-response>
+      </example>
+
+      <example>
+        <user-query>What files does this system use?</user-query>
+        <agent-response>Parse file-structure section, show both user-level and project-level</agent-response>
+      </example>
+
+      <example>
+        <user-query>How do I add a feature from another repo?</user-query>
+        <agent-response>Parse "add-feature-from-another-repo" flow, guide through steps</agent-response>
+      </example>
+
+      <example>
+        <user-query>What happens when I pull updates?</user-query>
+        <agent-response>Parse "team-member-pulls-updates" flow, explain notification and options</agent-response>
+      </example>
+
+      <example>
+        <user-query>How do favorites work?</user-query>
+        <agent-response>Parse favorites concept and "auto-add-favorites" flow</agent-response>
+      </example>
+    </query-examples>
+  </agent-instructions>
+
+  <testing-scenarios>
+    <scenario name="basic-sync-push">
+      <steps>
+        <step>Edit ~/.claude/settings.json - add new command</step>
+        <step>Verify agent detects change</step>
+        <step>Approve push to linked repos</step>
+        <step>Verify worktree created</step>
+        <step>Verify sync-manifest.json updated</step>
+        <step>Verify PR created</step>
+      </steps>
+    </scenario>
+
+    <scenario name="basic-sync-pull">
+      <steps>
+        <step>Modify .claude/sync-manifest.json in repo</step>
+        <step>Commit and push</step>
+        <step>In fresh clone, git pull</step>
+        <step>Verify agent shows notification</step>
+        <step>Approve sync</step>
+        <step>Verify ~/.claude/settings.json updated</step>
+        <step>Verify backup created</step>
+      </steps>
+    </scenario>
+
+    <scenario name="add-from-external-repo">
+      <steps>
+        <step>Create test-repo with sync-manifest.json</step>
+        <step>Run /features-add → Another repo</step>
+        <step>Provide test-repo path</step>
+        <step>Select feature, mark as favorite, share with team</step>
+        <step>Verify added to ~/.claude/settings.json</step>
+        <step>Verify sync worktrees created</step>
+        <step>Verify manifests updated</step>
+        <step>Run /features-list → Verify shows in Favorites</step>
+      </steps>
+    </scenario>
+
+    <scenario name="auto-add-favorites">
+      <steps>
+        <step>Configure autoAddToNewRepos: true</step>
+        <step>Set favoriteGroups: ["git-worktrees"]</step>
+        <step>Create new-test-repo</step>
+        <step>Open in Claude Code</step>
+        <step>Verify agent auto-adds favorites</step>
+        <step>Verify sync-manifest.json created</step>
+      </steps>
+    </scenario>
+  </testing-scenarios>
+</feature-documentation>

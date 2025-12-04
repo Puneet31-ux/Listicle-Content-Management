@@ -47,9 +47,66 @@ if (fileChanged('~/.claude/settings.json')) {
     [Yes] [No] [Show changes first]`);
 
     if (userApproves) {
+      // AUTOMATIC SSH SETUP
+      await ensureSSHConfigured();
+
+      // AUTOMATIC GH CLI SETUP
+      await ensureGHCLIConfigured();
+
+      // PUSH AND CREATE PRS
       await pushChangesToRepos(changes, linkedRepos);
     }
   }
+}
+
+// SSH Configuration Check
+async function ensureSSHConfigured() {
+  // 1. Check if SSH keys exist
+  const keysExist = exists('~/.ssh/id_ed25519');
+
+  if (!keysExist) {
+    // Generate SSH keys automatically
+    exec('ssh-keygen -t ed25519 -C "user@project" -f ~/.ssh/id_ed25519 -N ""');
+    showPublicKeyInstructions();
+    await waitForUserToAddKey();
+  }
+
+  // 2. Test SSH connection
+  const sshWorks = await testSSH();
+
+  if (!sshWorks) {
+    showPublicKeyInstructions();
+    await waitForUserToAddKey();
+  }
+
+  // 3. Ensure git remote uses SSH
+  const remoteUrl = exec('git remote get-url origin');
+
+  if (remoteUrl.startsWith('https://')) {
+    const sshUrl = convertToSSH(remoteUrl);
+    exec(`git remote set-url origin ${sshUrl}`);
+  }
+}
+
+// GH CLI Configuration Check
+async function ensureGHCLIConfigured() {
+  // 1. Check if gh is installed
+  const ghInstalled = exec('which gh');
+
+  if (!ghInstalled) {
+    prompt('Install GitHub CLI for automatic PR creation: brew install gh');
+    return false;
+  }
+
+  // 2. Check if authenticated
+  const authenticated = exec('gh auth status');
+
+  if (!authenticated) {
+    prompt('Authenticating with GitHub CLI...');
+    exec('gh auth login');
+  }
+
+  return true;
 }
 ```
 

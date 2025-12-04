@@ -46,7 +46,7 @@ The system handles all the git worktrees, commits, and PRs for you.
 
 - **`/sync-status`** - See what's synced and what's not across all repos
 - **`/sync-pull`** - Manually pull updates from a repo to your settings
-- **`/sync-push`** - Push your local changes to linked repos
+- **`/sync-push`** - Push your local changes to linked repos (fully automated with SSH setup and PR creation!)
 - **`/sync-diff`** - See detailed differences before syncing
 
 ### Feature Management
@@ -167,6 +167,51 @@ Don't want a specific feature? You can opt-out in `.claude/settings.local.json`:
 - `.claude/skills/internal-install-helper.md` - Auto-activation skill
 - `.claude/docs/` - Documentation
 
+## Automation Features
+
+### Automatic SSH Setup
+
+The system automatically configures SSH for GitHub when needed:
+
+1. **First time**: If you don't have SSH keys, the agent will:
+   - Generate SSH keys for you
+   - Show you the public key to add to GitHub
+   - Wait for you to add it
+   - Test the connection
+
+2. **Already have keys**: If keys exist but aren't added to GitHub:
+   - Shows your public key
+   - Provides link to GitHub settings
+   - Waits for confirmation
+
+3. **Fully configured**: If SSH is ready, proceeds immediately!
+
+### Automatic PR Creation
+
+When pushing updates, the agent automatically:
+
+1. Checks if GitHub CLI (`gh`) is installed
+2. If not installed, prompts you: `brew install gh`
+3. Authenticates with GitHub (`gh auth login`)
+4. Creates PRs with detailed descriptions including:
+   - Summary of changes
+   - Version information
+   - Author and date
+   - List of modified commands
+   - Testing checklist
+   - Team impact notes
+
+**Result**: You get clickable PR links immediately after pushing!
+
+```
+✅ Sync complete! Pushed to 2 repos:
+
+- Listicle-Content-Management: https://github.com/owner/repo/pull/123
+- other-project: https://github.com/owner/other/pull/124
+
+Team members will be notified on next pull.
+```
+
 ## Troubleshooting
 
 ### "Sync failed: Worktree already exists"
@@ -178,6 +223,29 @@ git worktree remove path/to/worktree  # Remove old one
 ```
 
 Then try syncing again.
+
+### "SSH Permission denied (publickey)"
+
+Your SSH key isn't added to GitHub:
+
+1. Get your public key: `cat ~/.ssh/id_ed25519.pub`
+2. Go to https://github.com/settings/ssh/new
+3. Paste the key and save
+4. Test: `ssh -T git@github.com`
+
+### "GitHub CLI not found"
+
+Install GitHub CLI to enable automatic PR creation:
+
+```bash
+# macOS
+brew install gh
+
+# Linux
+# See https://github.com/cli/cli#installation
+```
+
+Then authenticate: `gh auth login`
 
 ### "I don't see the notification after git pull"
 
@@ -223,6 +291,8 @@ cp ~/.claude/settings.json.backup-20251204-150600 ~/.claude/settings.json
   - Feature discovery
   - Auto-notifications on git pull
   - Safety features (backups, checksums, conflict resolution)
+  - **Automatic SSH setup** - Agent handles key generation and configuration
+  - **Automatic PR creation** - Agent creates detailed PRs using gh CLI
 
 ## Credits
 

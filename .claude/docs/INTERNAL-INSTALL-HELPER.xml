@@ -51,15 +51,20 @@
       <step number="2">Internal-Install-Helper detects change (via file watcher or on session start)</step>
       <step number="3">Agent asks: "Push to linked project repos?" with list of repos</step>
       <step number="4">User approves</step>
-      <step number="5">For each repo:
+      <step number="5">Agent checks SSH configuration:
+        - If SSH not configured: Automatically runs SSH setup (generate keys, display for GitHub)
+        - If SSH configured but keys not added to GitHub: Shows public key and waits for user
+        - If SSH fully configured: Proceeds immediately
+      </step>
+      <step number="6">For each repo:
         - Check if sync worktree exists, create if needed
         - Update files in sync worktree's .claude/settings.json
         - Update sync-manifest.json (version, changelog, timestamp, author)
         - Commit with attribution
-        - Push branch
-        - Create PR or ask to merge
+        - Push branch to remote
+        - AUTOMATICALLY create PR using gh CLI with detailed description
       </step>
-      <step number="6">Agent confirms: "Pushed to N repos. PRs created."</step>
+      <step number="7">Agent confirms: "✅ Pushed to N repos. PRs created:" with links</step>
     </sync-flow>
 
     <sync-flow direction="project-to-user">
@@ -534,6 +539,202 @@
       </example>
     </query-examples>
   </agent-instructions>
+
+  <automation>
+    <ssh-setup>
+      <description>Automated SSH configuration for GitHub to enable agent-driven git operations</description>
+
+      <detection>
+        <check name="ssh-keys-exist">
+          Test if ~/.ssh/id_ed25519 and ~/.ssh/id_ed25519.pub exist
+        </check>
+        <check name="ssh-key-added-to-github">
+          Run: ssh -T git@github.com
+          Success: Returns "Hi username! You've successfully authenticated"
+          Failure: Returns "Permission denied (publickey)"
+        </check>
+        <check name="git-remote-uses-ssh">
+          Run: git remote get-url origin
+          Success: Starts with "git@github.com:"
+          Failure: Starts with "https://github.com/"
+        </check>
+      </detection>
+
+      <automatic-setup-flow>
+        <step number="1">Detect SSH status using checks above</step>
+        <step number="2">If keys don't exist:
+          - Generate SSH key pair: ssh-keygen -t ed25519 -C "user@repo-project" -f ~/.ssh/id_ed25519 -N ""
+          - Display success: "SSH keys generated"
+        </step>
+        <step number="3">If keys exist but not added to GitHub:
+          - Read public key: cat ~/.ssh/id_ed25519.pub
+          - Display to user with instructions:
+            "Please add this SSH key to GitHub:
+
+            Public Key:
+            [key contents]
+
+            Steps:
+            1. Visit: https://github.com/settings/ssh/new
+            2. Title: [Repo Name] - Claude Code
+            3. Paste the key above
+            4. Click 'Add SSH key'
+
+            I'll test the connection when you're ready."
+          - Wait for user confirmation
+          - Test connection: ssh -T git@github.com
+        </step>
+        <step number="4">If git remote uses HTTPS:
+          - Get current remote: git remote get-url origin
+          - Convert to SSH format: Replace https://github.com/ with git@github.com:
+          - Update remote: git remote set-url origin [ssh-url]
+          - Confirm: "Git remote updated to use SSH"
+        </step>
+        <step number="5">Verify complete setup:
+          - Test SSH: ssh -T git@github.com
+          - If success: "SSH setup complete! Agent can now push automatically."
+          - If failure: Show error and troubleshooting steps
+        </step>
+      </automatic-setup-flow>
+
+      <troubleshooting>
+        <issue name="permission-denied">
+          <symptom>ssh -T git@github.com returns "Permission denied (publickey)"</symptom>
+          <solution>
+            1. Verify public key was added to GitHub account
+            2. Check key permissions: chmod 600 ~/.ssh/id_ed25519
+            3. Verify ssh-agent is running: eval "$(ssh-agent -s)"
+            4. Add key to agent: ssh-add ~/.ssh/id_ed25519
+          </solution>
+        </issue>
+        <issue name="wrong-key">
+          <symptom>SSH connection works but for wrong GitHub account</symptom>
+          <solution>
+            1. Check which key is being used: ssh -vT git@github.com
+            2. Create .ssh/config to specify key per host
+            3. Or remove old keys and re-add correct one
+          </solution>
+        </issue>
+      </troubleshooting>
+    </ssh-setup>
+
+    <pr-creation>
+      <description>Automated pull request creation using gh CLI</description>
+
+      <prerequisites>
+        <item>GitHub CLI (gh) must be installed</item>
+        <item>User must be authenticated: gh auth status</item>
+        <item>SSH must be configured (see ssh-setup above)</item>
+      </prerequisites>
+
+      <automatic-pr-flow>
+        <step number="1">After pushing branch to remote, check if gh CLI is available:
+          - Run: which gh
+          - If not found: Prompt user to install: brew install gh
+        </step>
+        <step number="2">Check gh authentication:
+          - Run: gh auth status
+          - If not authenticated: Run: gh auth login (interactive)
+        </step>
+        <step number="3">Create PR automatically with rich description:
+          - Command: gh pr create --title "[title]" --body "[body]"
+          - Title format: "sync: Update [group-name] v[version] by [author]"
+          - Body format (use heredoc for multiline):
+            ## Summary
+            [Detailed summary of changes from changelog]
+
+            ## Sync Group: [group-name]
+            - **Version**: v[old-version] → v[new-version]
+            - **Author**: [author]
+            - **Date**: [timestamp]
+
+            ## Changes
+            [Bullet list of all changes from changelog]
+
+            ## Commands Added/Updated
+            [List of slash commands with descriptions]
+
+            ## Files Modified
+            - .claude/sync-manifest.json
+            - .claude/settings.json
+            [Other modified files]
+
+            ## Team Impact
+            When this PR is merged, team members will receive a notification on their next git pull with option to sync these changes to their local user settings.
+
+            ## Testing
+            - [ ] Sync manifest validates
+            - [ ] Commands load in Claude Code
+            - [ ] No conflicts with existing settings
+
+            🤖 Generated with Claude Code
+            Co-Authored-By: Claude &lt;noreply@anthropic.com&gt;
+        </step>
+        <step number="4">Capture PR URL from gh output</step>
+        <step number="5">Display success message with clickable PR link</step>
+      </automatic-pr-flow>
+
+      <pr-template>
+        <title>sync: Update {group-name} v{version} by {author}</title>
+        <body-structure>
+          <section name="summary">Concise 1-2 sentence overview</section>
+          <section name="sync-info">Group name, version change, author, date</section>
+          <section name="changes">Detailed bullet list from changelog</section>
+          <section name="commands">List of slash commands affected</section>
+          <section name="files">Files modified in this sync</section>
+          <section name="team-impact">What team members will see</section>
+          <section name="testing">Checklist of validation steps</section>
+          <section name="attribution">Claude Code attribution</section>
+        </body-structure>
+      </pr-template>
+
+      <error-handling>
+        <error name="gh-not-installed">
+          <message>GitHub CLI not found. Install it to enable automatic PR creation:</message>
+          <solution>
+            macOS: brew install gh
+            Linux: See https://github.com/cli/cli#installation
+            Windows: winget install gh
+          </solution>
+          <fallback>Show manual PR creation URL instead</fallback>
+        </error>
+        <error name="gh-not-authenticated">
+          <message>GitHub CLI not authenticated. Running interactive login:</message>
+          <solution>Run: gh auth login (agent executes this)</solution>
+          <fallback>If login fails, show manual PR URL</fallback>
+        </error>
+        <error name="pr-creation-failed">
+          <message>Failed to create PR automatically</message>
+          <solution>Display manual PR URL with pre-filled title and body</solution>
+        </error>
+      </error-handling>
+    </pr-creation>
+
+    <full-automation-workflow>
+      <description>Complete end-to-end automation when user approves sync push</description>
+      <steps>
+        <step number="1">User approves: "Push to linked repos?"</step>
+        <step number="2">Agent runs SSH detection and setup if needed</step>
+        <step number="3">Agent checks gh CLI availability</step>
+        <step number="4">For each linked repo:
+          - Create/switch to worktree
+          - Update files
+          - Commit changes
+          - Push to remote (using SSH)
+          - Create PR (using gh CLI)
+          - Capture PR URL
+        </step>
+        <step number="5">Display summary:
+          ✅ Sync complete! Pushed to [N] repos:
+
+          - [repo-1]: https://github.com/owner/repo-1/pull/123
+          - [repo-2]: https://github.com/owner/repo-2/pull/124
+
+          Team members will be notified on next pull.
+        </step>
+      </steps>
+    </full-automation-workflow>
+  </automation>
 
   <testing-scenarios>
     <scenario name="basic-sync-push">

@@ -131,40 +131,43 @@ npm run dev
 
 ## Claude Code Resources
 
-For detailed documentation on the Claude Code commands, skills, and agents included in this repository, see:
+For detailed documentation on the Claude Code commands, skills, and agents included in this repository, see the `taches/` folder:
 
-- [Commands Documentation](./commands/)
-- [Skills Documentation](./skills/)
-- [Agents Documentation](./agents/)
-- [Skills Demo](./skills-demo/)
+- [Commands Documentation](./taches/commands/)
+- [Skills Documentation](./taches/skills/)
+- [Agents Documentation](./taches/agents/)
+- [Skills Demo](./taches/skills-demo/)
 
 ## Project Structure
 
 ```
-src/
+src/                             # Next.js application
 ├── app/
 │   ├── api/
-│   │   ├── brave-search/      # Brave Search API integration
-│   │   ├── research/           # AI research API endpoint
-│   │   ├── warp-skill/         # Warp skill integration
+│   │   ├── brave-search/       # Brave Search API integration
+│   │   ├── research/            # AI research API endpoint
+│   │   ├── warp-skill/          # Warp skill integration
 │   │   └── write-listicle-copy/ # Listicle copy generation
-│   ├── globals.css             # Global styles
-│   ├── layout.tsx              # Root layout
-│   └── page.tsx                # Main page
+│   ├── globals.css              # Global styles
+│   ├── layout.tsx               # Root layout
+│   └── page.tsx                 # Main page
 ├── components/
-│   ├── kanban/                 # Kanban board components
-│   └── ui/                     # Reusable UI components
+│   ├── kanban/                  # Kanban board components
+│   └── ui/                      # Reusable UI components
 ├── lib/
-│   ├── types.ts                # TypeScript types
-│   ├── utils.ts                # Utility functions
-│   └── constants.ts            # Constants
+│   ├── types.ts                 # TypeScript types
+│   ├── utils.ts                 # Utility functions
+│   └── constants.ts             # Constants
 └── store/
-    └── kanban-store.ts         # Zustand state management
+    └── kanban-store.ts          # Zustand state management
 
-commands/                        # Claude Code slash commands
-skills/                          # Claude Code skills
-skills-demo/                     # Skill demonstrations
-agents/                          # Claude Code subagents
+taches/                          # TÂCHES Claude Code Resources
+├── .claude-plugin/              # Plugin configuration
+├── commands/                    # Claude Code slash commands
+├── skills/                      # Claude Code skills
+├── skills-demo/                 # Skill demonstrations
+├── agents/                      # Claude Code subagents
+└── docs/                        # Documentation
 ```
 
 ## Deployment

@@ -30,6 +30,47 @@
     }
   },
   "syncGroups": {
+    "git-worktrees": {
+      "version": "1.0.0",
+      "description": "Git worktree automation commands with safety checks and best practices",
+      "category": "git-workflow",
+      "tags": ["git", "worktree", "workflow", "development"],
+      "projectFiles": [
+        ".claude/commands/worktree-create.md",
+        ".claude/commands/worktree-list.md",
+        ".claude/commands/worktree-cleanup.md",
+        ".claude/commands/worktree-switch.md"
+      ],
+      "userFiles": [
+        "~/.claude/settings.json (worktree commands available globally)"
+      ],
+      "linkedRepos": [
+        "Listicle-Content-Management"
+      ],
+      "dependencies": [],
+      "isFavorite": true,
+      "checksum": {
+        "algorithm": "sha256",
+        "manifest": "",
+        "files": {}
+      },
+      "changelog": [
+        {
+          "version": "1.0.0",
+          "date": "2025-12-04",
+          "author": "Lizzie",
+          "type": "feature",
+          "changes": "Initial release: worktree-create, worktree-list, worktree-cleanup, worktree-switch with comprehensive safety checks"
+        }
+      ],
+      "metadata": {
+        "createdAt": "2025-12-04T17:00:00Z",
+        "updatedAt": "2025-12-04T17:00:00Z",
+        "status": "active",
+        "maturity": "stable",
+        "license": "MIT"
+      }
+    },
     "internal-install-helper": {
       "version": "1.0.0",
       "description": "Intelligent sync system for managing user features and workflows across team members and repositories",

@@ -11,6 +11,92 @@ interface ResearchRequest {
   iteration?: number
 }
 
+// Quality scoring function for self-healing
+function checkAnalysisQuality(analysis: any, expectedQuestions: number): {
+  score: number
+  rating: string
+  issues: string[]
+} {
+  const issues: string[] = []
+  let score = 100
+
+  // Check if analysis exists
+  if (!analysis || !analysis.analysis) {
+    return { score: 0, rating: 'Failed', issues: ['No analysis data'] }
+  }
+
+  // Count questions answered
+  let questionsAnswered = 0
+  let questionsWithEvidence = 0
+  let questionsWithInsights = 0
+  let totalAnswerLength = 0
+
+  Object.values(analysis.analysis).forEach((category: any) => {
+    if (Array.isArray(category)) {
+      category.forEach((q: any) => {
+        questionsAnswered++
+
+        // Check answer quality
+        if (q.answer) {
+          totalAnswerLength += q.answer.length
+          if (q.answer.length < 50) {
+            score -= 2 // Penalty for shallow answers
+          }
+        } else {
+          score -= 5 // Penalty for missing answer
+          issues.push(`Question ${q.question_id} missing answer`)
+        }
+
+        // Check for evidence
+        if (q.evidence && q.evidence.length > 0) {
+          questionsWithEvidence++
+        }
+
+        // Check for copywriting insights
+        if (q.copywriting_insight && q.copywriting_insight.length > 20) {
+          questionsWithInsights++
+        }
+      })
+    }
+  })
+
+  // Calculate coverage
+  const coverage = (questionsAnswered / expectedQuestions) * 100
+  if (coverage < 80) {
+    score -= 20
+    issues.push(`Only ${questionsAnswered}/${expectedQuestions} questions answered`)
+  }
+
+  // Evidence coverage
+  const evidenceRate = (questionsWithEvidence / questionsAnswered) * 100
+  if (evidenceRate < 50) {
+    score -= 15
+    issues.push(`Only ${evidenceRate.toFixed(0)}% of answers have evidence`)
+  }
+
+  // Insight coverage
+  const insightRate = (questionsWithInsights / questionsAnswered) * 100
+  if (insightRate < 50) {
+    score -= 10
+    issues.push(`Only ${insightRate.toFixed(0)}% of answers have copywriting insights`)
+  }
+
+  // Average answer length
+  const avgAnswerLength = totalAnswerLength / questionsAnswered
+  if (avgAnswerLength < 100) {
+    score -= 10
+    issues.push(`Answers are too brief (avg ${avgAnswerLength.toFixed(0)} chars)`)
+  }
+
+  // Determine rating
+  let rating = 'Excellent'
+  if (score < 60) rating = 'Poor'
+  else if (score < 75) rating = 'Fair'
+  else if (score < 90) rating = 'Good'
+
+  return { score: Math.max(0, score), rating, issues }
+}
+
 export async function POST(req: NextRequest) {
   const startTime = Date.now()
   let braveStartTime = 0, braveEndTime = 0
@@ -239,7 +325,7 @@ export async function POST(req: NextRequest) {
               Authorization: `Bearer ${openaiApiKey}`,
             },
             body: JSON.stringify({
-              model: 'gpt-3.5-turbo',
+              model: 'gpt-5-mini', // Cheapest model - will auto-upgrade if quality issues detected
               messages: [
                 {
                   role: 'system',
@@ -352,7 +438,7 @@ DO NOT write generic CTAs. Extract the ACTUAL persuasive copy from the content s
               Authorization: `Bearer ${openaiApiKey}`,
             },
             body: JSON.stringify({
-              model: 'gpt-3.5-turbo',
+              model: 'gpt-5-mini', // Cheapest model - will auto-upgrade if quality issues detected
               messages: [
                 {
                   role: 'system',
@@ -419,7 +505,7 @@ Make the prompt specific and actionable - not generic advice. Reference actual e
               Authorization: `Bearer ${openaiApiKey}`,
             },
             body: JSON.stringify({
-              model: 'gpt-4o-mini', // Use cheaper model for long analysis
+              model: 'gpt-5-mini', // Cheapest model for comprehensive analysis - auto-upgrades to gpt-5.1 if needed
               messages: [
                 {
                   role: 'system',
@@ -487,12 +573,118 @@ Analyze all provided content and answer each question thoroughly. Be specific, c
         )
 
         let comprehensiveAnalysis = null
+        let modelUsed = 'gpt-5-mini'
+        let finalQualityScore: any = null
+
         if (analysisResponse.ok) {
           const analysisData = await analysisResponse.json()
           comprehensiveAnalysis = JSON.parse(
             analysisData.choices[0].message.content || '{}'
           )
-          console.log(`✅ Comprehensive analysis complete with ${analysisFramework.totalQuestions} questions answered`)
+
+          // Self-Healing: Check analysis quality
+          const qualityScore = checkAnalysisQuality(comprehensiveAnalysis, analysisFramework.totalQuestions)
+          finalQualityScore = qualityScore
+          console.log(`📊 Analysis quality score: ${qualityScore.score}/100 (${qualityScore.rating})`)
+
+          // If quality is poor, retry with better model
+          if (qualityScore.score < 60) {
+            console.log(`⚠️ Quality too low (${qualityScore.score}/100). Auto-upgrading to gpt-5.1...`)
+            console.log(`   Issues: ${qualityScore.issues.join(', ')}`)
+
+            try {
+              const retryResponse = await fetch(
+                'https://api.openai.com/v1/chat/completions',
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${openaiApiKey}`,
+                  },
+                  body: JSON.stringify({
+                    model: 'gpt-5.1', // Upgraded model for better quality
+                    messages: [
+                      {
+                        role: 'system',
+                        content: `You are an expert listicle offer analyst. Your job is to answer comprehensive deep-dive questions about an offer based on competitor content analysis.
+
+**Your Analysis Must:**
+1. Be specific and detailed - cite actual phrases, numbers, and examples from the content provided
+2. Identify gaps - if information is missing, say "Information not found in source content - recommend gathering [specific data]"
+3. Extract exact language - when analyzing CTAs, pain points, or messaging, quote directly from sources
+4. Think psychologically - understand reader motivations, fears, and desires
+5. Be actionable - every answer should help a copywriter craft better listicle content
+
+**Answer Format:**
+For each question, provide:
+- **Direct Answer:** The specific answer based on source analysis
+- **Evidence:** Quotes or specific details from the scraped content that support your answer
+- **Gaps:** What information is missing that would strengthen the analysis
+- **Copywriting Insight:** How this answer should inform the listicle copy
+
+Return your analysis as a JSON object with this structure:
+{
+  "category": "offer category",
+  "analysis": {
+    "Core Offer Mechanics": [
+      {
+        "question_id": 1,
+        "question": "...",
+        "answer": "...",
+        "evidence": ["quote 1", "quote 2"],
+        "gaps": "...",
+        "copywriting_insight": "..."
+      }
+    ],
+    "Reader Psychology & Pain Points": [...],
+    ...
+  }
+}`
+                      },
+                      {
+                        role: 'user',
+                        content: `**Offer Topic:** ${topic}
+
+**Research Sources:**
+${JSON.stringify(combinedContent, null, 2)}
+
+---
+
+**COMPREHENSIVE ANALYSIS QUESTIONS:**
+
+${formattedQuestions}
+
+---
+
+Analyze all provided content and answer each question thoroughly. Be specific, cite evidence, identify gaps, and provide actionable copywriting insights.`
+                      }
+                    ],
+                    response_format: { type: 'json_object' },
+                    temperature: 0.4,
+                    max_tokens: 8000 // More tokens for better model
+                  }),
+                }
+              )
+
+              if (retryResponse.ok) {
+                const retryData = await retryResponse.json()
+                comprehensiveAnalysis = JSON.parse(
+                  retryData.choices[0].message.content || '{}'
+                )
+                modelUsed = 'gpt-5.1'
+                const newQualityScore = checkAnalysisQuality(comprehensiveAnalysis, analysisFramework.totalQuestions)
+                finalQualityScore = newQualityScore
+                console.log(`✅ Upgraded analysis complete. New quality score: ${newQualityScore.score}/100 (${newQualityScore.rating})`)
+              } else {
+                console.warn(`⚠️ Upgrade to gpt-5.1 failed, using gpt-5-mini results`)
+              }
+            } catch (retryError) {
+              console.error('Auto-upgrade error:', retryError)
+              console.log(`   Continuing with gpt-5-mini results`)
+            }
+          } else {
+            console.log(`✅ Comprehensive analysis complete with ${analysisFramework.totalQuestions} questions answered using ${modelUsed}`)
+          }
         } else {
           console.warn('⚠️ Comprehensive analysis failed, continuing with basic insights only')
         }
@@ -505,7 +697,10 @@ Analyze all provided content and answer each question thoroughly. Be specific, c
           analysisFramework: {
             category: offerCategory,
             totalQuestions: analysisFramework.totalQuestions,
-            depth
+            depth,
+            modelUsed,
+            qualityScore: finalQualityScore?.score,
+            qualityRating: finalQualityScore?.rating
           }
         }
 

@@ -47,6 +47,9 @@ export interface ResearchResults {
       category: string
       totalQuestions: number
       depth: string
+      modelUsed?: string
+      qualityScore?: number
+      qualityRating?: string
     }
   }
   errors?: {
@@ -222,8 +225,14 @@ function generateMarkdown(results: ResearchResults): string {
       md += `## 📋 Comprehensive Offer Analysis\n\n`
       md += `**Category:** ${openAIInsights.analysisFramework.category}\n`
       md += `**Questions Analyzed:** ${openAIInsights.analysisFramework.totalQuestions}\n`
-      md += `**Depth:** ${openAIInsights.analysisFramework.depth}\n\n`
-      md += `*This analysis uses the proven 50-question framework to deeply understand your offer, audience psychology, and conversion pathway.*\n\n`
+      md += `**Depth:** ${openAIInsights.analysisFramework.depth}\n`
+      if (openAIInsights.analysisFramework.modelUsed) {
+        md += `**Model Used:** ${openAIInsights.analysisFramework.modelUsed}\n`
+      }
+      if (openAIInsights.analysisFramework.qualityScore !== undefined) {
+        md += `**Quality Score:** ${openAIInsights.analysisFramework.qualityScore}/100 (${openAIInsights.analysisFramework.qualityRating || 'N/A'})\n`
+      }
+      md += `\n*This analysis uses the proven 50-question framework to deeply understand your offer, audience psychology, and conversion pathway.*\n\n`
 
       const analysis = openAIInsights.comprehensiveAnalysis.analysis || {}
 

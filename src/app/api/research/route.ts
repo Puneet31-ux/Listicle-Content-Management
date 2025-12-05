@@ -1,14 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { saveResearchToMarkdown, ResearchResults } from '@/lib/save-research'
+
+type ResearchDepth = 'surface' | 'medium' | 'deep'
+
+interface ResearchRequest {
+  topic: string
+  sourceUrls?: string[]
+  depth?: ResearchDepth
+  iteration?: number
+}
 
 export async function POST(req: NextRequest) {
+  const startTime = Date.now()
+  let braveStartTime = 0, braveEndTime = 0
+  let brightDataStartTime = 0, brightDataEndTime = 0
+  let openAIStartTime = 0, openAIEndTime = 0
+
+  // Variables to collect ALL research data for markdown file
+  let collectedBraveResults: any = null
+  let collectedBrightDataResults: any = null
+  let collectedOpenAIInsights: any = null
+  let researchErrors: { brave?: string; brightData?: string; openAI?: string } = {}
+
   try {
-    const { topic } = await req.json()
+    const {
+      topic,
+      sourceUrls = [],
+      depth = 'medium',
+      iteration = 1,
+    } = await req.json() as ResearchRequest
 
     if (!topic) {
       return NextResponse.json(
         { error: 'Topic is required' },
         { status: 400 }
       )
+    }
+
+    console.log(`📊 Research Request - Topic: "${topic}" | Depth: ${depth} | Iteration: ${iteration} | Source URLs: ${sourceUrls.length}`)
+
+    // Track which APIs were used
+    const researchSources = {
+      braveSearch: false,
+      brightData: false,
     }
 
     // Check for API keys
@@ -25,67 +59,171 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // PHASE 0: Deep scraping with Bright Data
+    // PRIORITY: User-provided source URLs → Always scrape these first
+    // DECISION: Use extract mode for medium depth, scrape mode for deep
+    let scrapedContent: any[] = []
+
+    const shouldUseBrightData =
+      sourceUrls.length > 0 || // User provided URLs (PRIORITY)
+      depth === 'deep' || // Deep research always scrapes competitors
+      iteration > 1 // Iterations need deeper data
+
+    if (shouldUseBrightData && sourceUrls.length > 0) {
+      try {
+        console.log(`🔍 PRIORITY: Scraping ${sourceUrls.length} user-provided URLs with Bright Data...`)
+
+        // Determine mode and extract fields based on depth
+        const mode = depth === 'deep' ? 'scrape' : 'extract'
+        const extractFields = ['cta', 'headline', 'terms', 'eligibility', 'prices']
+
+        const brightDataResponse = await fetch(
+          `${req.nextUrl.protocol}//${req.nextUrl.host}/api/bright-data`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              urls: sourceUrls,
+              mode,
+              extractFields: mode === 'extract' ? extractFields : undefined,
+            }),
+          }
+        )
+
+        if (brightDataResponse.ok) {
+          const brightDataResult = await brightDataResponse.json()
+          scrapedContent = brightDataResult.scrapedContent || []
+          researchSources.brightData = true
+          console.log(`✅ Scraped ${scrapedContent.length} URLs in "${mode}" mode`)
+
+          // Collect Bright Data results for markdown file
+          collectedBrightDataResults = {
+            scrapedPages: scrapedContent.map((scraped: any) => ({
+              url: scraped.url,
+              content: scraped.content,
+              extracted: scraped.metadata,
+            })),
+          }
+        } else {
+          const errorText = await brightDataResponse.text()
+          console.warn('⚠️ Bright Data scraping failed, continuing with Brave Search only')
+          researchErrors.brightData = `Bright Data error (${brightDataResponse.status}): ${errorText}`
+        }
+      } catch (error) {
+        console.error('Bright Data error:', error)
+        researchErrors.brightData = error instanceof Error ? error.message : 'Bright Data request failed'
+        // Continue with Brave Search even if Bright Data fails
+      }
+    }
+
     // PHASE 1: Web Research using Brave Search API
-    const searchResponse = await fetch(
-      `https://api.search.brave.com/res/v1/web/search?${new URLSearchParams({
-        q: topic,
-        count: '10',
-        country: 'us',
-        search_lang: 'en',
-      })}`,
-      {
-        headers: {
-          'X-Subscription-Token': braveApiKey,
-          Accept: 'application/json',
-        },
-      }
-    )
+    // DECISION: Skip if deep mode with sufficient scraped content (5+ URLs)
+    // Otherwise, use for discovery and competitor finding
+    const shouldUseBraveSearch =
+      depth === 'surface' || // Surface always uses Brave for quick discovery
+      depth === 'medium' || // Medium uses both
+      scrapedContent.length < 5 // Even deep needs more if not enough scraped
 
-    if (!searchResponse.ok) {
-      throw new Error(`Brave Search API error: ${searchResponse.statusText}`)
+    let searchResults: any[] = []
+    let researchSummary: any[] = []
+
+    if (shouldUseBraveSearch) {
+      console.log(`🔎 Using Brave Search for ${depth} level discovery...`)
+
+      const searchResponse = await fetch(
+        `https://api.search.brave.com/res/v1/web/search?${new URLSearchParams({
+          q: topic,
+          count: depth === 'surface' ? '5' : '10',
+        })}`,
+        {
+          headers: {
+            'X-Subscription-Token': braveApiKey,
+            Accept: 'application/json',
+          },
+        }
+      )
+
+      if (!searchResponse.ok) {
+        const errorBody = await searchResponse.text()
+        console.error('Brave Search API error:', errorBody)
+        researchErrors.brave = `Brave Search API error (${searchResponse.status}): ${searchResponse.statusText}`
+        throw new Error(`Brave Search API error (${searchResponse.status}): ${searchResponse.statusText}`)
+      }
+
+      const searchData = await searchResponse.json()
+
+      // Extract search results
+      searchResults = searchData.web?.results || []
+      researchSummary = searchResults
+        .slice(0, depth === 'surface' ? 5 : 10)
+        .map((result: any) => ({
+          title: result.title,
+          description: result.description,
+          url: result.url,
+        }))
+
+      // Collect Brave results for markdown file
+      collectedBraveResults = {
+        query: topic,
+        results: researchSummary,
+        keywords: searchData.query?.altered_keywords || [],
+      }
+
+      researchSources.braveSearch = true
+      console.log(`✅ Found ${researchSummary.length} results from Brave Search`)
+    } else {
+      console.log(`⏭️  Skipping Brave Search - sufficient data from Bright Data (${scrapedContent.length} sources)`)
     }
 
-    const searchData = await searchResponse.json()
+    // PHASE 1.5: Get rich content with snippets for AI analysis (only if using Brave)
+    let richContent: any[] = []
 
-    // Extract search results
-    const searchResults = searchData.web?.results || []
-    const researchSummary = searchResults
-      .slice(0, 10)
-      .map((result: any) => ({
-        title: result.title,
-        description: result.description,
-        url: result.url,
-      }))
+    if (shouldUseBraveSearch && depth !== 'surface') {
+      const richContentResponse = await fetch(
+        `https://api.search.brave.com/res/v1/web/search?${new URLSearchParams({
+          q: `"${topic}" (listicle OR article)`,
+          count: '5',
+        })}`,
+        {
+          headers: {
+            'X-Subscription-Token': braveApiKey,
+            Accept: 'application/json',
+          },
+        }
+      )
 
-    // PHASE 1.5: Get rich content with snippets for AI analysis
-    const richContentResponse = await fetch(
-      `https://api.search.brave.com/res/v1/web/search?${new URLSearchParams({
-        q: `"${topic}" (listicle OR article)`,
-        count: '5',
-        country: 'us',
-        search_lang: 'en',
-        freshness: 'py', // Past year for recent content
-      })}`,
-      {
-        headers: {
-          'X-Subscription-Token': braveApiKey,
-          Accept: 'application/json',
-        },
+      if (richContentResponse.ok) {
+        const richContentData = await richContentResponse.json()
+        const richResults = richContentData.web?.results || []
+        richContent = richResults.map((result: any) => ({
+          title: result.title,
+          description: result.description,
+          url: result.url,
+          extra_snippets: result.extra_snippets || [],
+          deep_results: result.deep_results?.results || [],
+        }))
       }
-    )
-
-    let richContent: any[] = researchSummary.slice(0, 5) // Fallback to basic summaries
-    if (richContentResponse.ok) {
-      const richContentData = await richContentResponse.json()
-      const richResults = richContentData.web?.results || []
-      richContent = richResults.map((result: any) => ({
-        title: result.title,
-        description: result.description,
-        url: result.url,
-        extra_snippets: result.extra_snippets || [],
-        deep_results: result.deep_results?.results || [],
-      }))
+    } else {
+      // Fallback to basic summaries if we skipped rich content
+      richContent = researchSummary.slice(0, 5)
     }
+
+    // Combine Bright Data scraped content with Brave Search results
+    // Prioritize scraped content as it has the full page data
+    const combinedContent = [
+      ...scrapedContent.map((scraped: any) => ({
+        title: scraped.title,
+        description: `SCRAPED CONTENT: ${scraped.content.substring(0, 500)}...`,
+        url: scraped.url,
+        metadata: scraped.metadata,
+        source: 'bright-data',
+        fullContent: scraped.content, // Include full scraped markdown
+      })),
+      ...richContent.map((result: any) => ({
+        ...result,
+        source: 'brave-search',
+      })),
+    ]
 
     // PHASE 2 & 3: If OpenAI key is available, use it for insights
     if (openaiApiKey) {
@@ -163,11 +301,11 @@ DO NOT write generic CTAs. Extract the ACTUAL persuasive copy from the content s
                 },
                 {
                   role: 'user',
-                  content: `Topic: ${topic}\n\nCompetitor Listicle Content (with snippets):\n${JSON.stringify(
-                    richContent,
+                  content: `Topic: ${topic}\n\nCompetitor Content Analysis:\n${JSON.stringify(
+                    combinedContent,
                     null,
                     2
-                  )}\n\nExtract EXACT language from the titles, descriptions, extra_snippets, and deep_results above. Do not make up generic phrases.`,
+                  )}\n\nPay special attention to entries marked "bright-data" as they contain FULL PAGE CONTENT with exact CTAs, offers, and T&Cs. Extract EXACT language from the titles, descriptions, fullContent (for bright-data sources), extra_snippets, and deep_results. Do not make up generic phrases.`,
                 },
               ],
               response_format: { type: 'json_object' },
@@ -252,10 +390,37 @@ Make the prompt specific and actionable - not generic advice. Reference actual e
         const promptData = await promptResponse.json()
         const finalPrompt = promptData.choices[0].message.content || ''
 
+        // Collect OpenAI insights for markdown file
+        collectedOpenAIInsights = {
+          finalPrompt,
+          backstory,
+        }
+
+        // Save all research results to markdown file
+        const researchFile = await saveResearchToMarkdown({
+          taskId: 'auto-generated', // Will be updated by frontend when task ID is known
+          taskTitle: topic,
+          depth,
+          iteration,
+          timestamp: new Date().toISOString(),
+          sourceUrls,
+          braveSearchResults: collectedBraveResults,
+          brightDataResults: collectedBrightDataResults,
+          openAIInsights: collectedOpenAIInsights,
+          errors: Object.keys(researchErrors).length > 0 ? researchErrors : undefined,
+        })
+
+        console.log(`✅ Research results saved to: ${researchFile}`)
+
         return NextResponse.json({
           finalPrompt,
           backstory,
           researchedAt: new Date().toISOString(),
+          researchSources,
+          scrapedUrlsCount: scrapedContent.length,
+          depth,
+          iteration,
+          researchFile, // Return filename for frontend to display
         })
       } catch (aiError) {
         console.error('AI processing error:', aiError)
@@ -270,7 +435,8 @@ Make the prompt specific and actionable - not generic advice. Reference actual e
             errorMessage = 'OpenAI quota exceeded - using fallback research'
           }
         }
-        // Store error for fallback note
+        // Store error for fallback note and in researchErrors
+        researchErrors.openAI = errorMessage
         ;(globalThis as any).__lastAiError = errorMessage
         // Fall through to fallback response
       }
@@ -310,10 +476,38 @@ Make sure to:
 Sources for reference:
 ${researchSummary.slice(0, 3).map((r: any) => `- ${r.url}`).join('\n')}`
 
+    // Collect fallback OpenAI insights for markdown file
+    collectedOpenAIInsights = {
+      finalPrompt: fallbackPrompt,
+      backstory: fallbackBackstory,
+    }
+
+    // Save all research results to markdown file (including fallback)
+    const researchFile = await saveResearchToMarkdown({
+      taskId: 'auto-generated', // Will be updated by frontend when task ID is known
+      taskTitle: topic,
+      depth,
+      iteration,
+      timestamp: new Date().toISOString(),
+      sourceUrls,
+      braveSearchResults: collectedBraveResults,
+      brightDataResults: collectedBrightDataResults,
+      openAIInsights: collectedOpenAIInsights,
+      errors: Object.keys(researchErrors).length > 0 ? researchErrors : undefined,
+      fallbackUsed: true,
+    })
+
+    console.log(`✅ Research results saved to: ${researchFile} (fallback mode)`)
+
     return NextResponse.json({
       finalPrompt: fallbackPrompt,
       backstory: fallbackBackstory,
       researchedAt: new Date().toISOString(),
+      researchSources,
+      scrapedUrlsCount: scrapedContent.length,
+      depth,
+      iteration,
+      researchFile, // Return filename for frontend to display
       note: openaiApiKey
         ? ((globalThis as any).__lastAiError || 'AI processing failed, using fallback')
         : 'Add OPENAI_API_KEY to .env.local for AI-powered insights',

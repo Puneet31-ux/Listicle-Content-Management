@@ -15,9 +15,10 @@ interface TaskCardProps {
   onResearch: (task: Task) => void
   onBraveSearch?: (task: Task) => void
   onGenerateCopy?: (task: Task, passLevel: 'draft' | 'ai-removal' | 'polish') => void
+  onViewCopy?: (task: Task) => void
 }
 
-export function TaskCard({ task, onEdit, onGenerateStrategy, onResearch, onBraveSearch, onGenerateCopy }: TaskCardProps) {
+export function TaskCard({ task, onEdit, onGenerateStrategy, onResearch, onBraveSearch, onGenerateCopy, onViewCopy }: TaskCardProps) {
   const {
     attributes,
     listeners,
@@ -484,11 +485,17 @@ export function TaskCard({ task, onEdit, onGenerateStrategy, onResearch, onBrave
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  const variationsList = task.copyGeneration?.variations?.map((v, idx) => `${idx + 1}. ${v.strategicApproach}\n   Headline: "${v.headline}"\n   Best For: ${v.bestFor}`).join('\n\n')
-                  alert(`🎨 COPY VARIATIONS GENERATED\n\n${task.copyGeneration?.variations?.length} variations created:\n\n${variationsList}\n\nClick the card to view full copy with interactive elements, CTAs, and TOP PICK recommendation.`)
+                  if (onViewCopy) {
+                    onViewCopy(task)
+                  } else {
+                    const variationsList = task.copyGeneration?.variations?.map((v, idx) => `${idx + 1}. ${v.strategicApproach}\n   Headline: "${v.headline}"\n   Best For: ${v.bestFor}`).join('\n\n')
+                    const versionInfo = task.copyGeneration?.currentIteration ? `Version ${task.copyGeneration.currentIteration}` : ''
+                    const historyCount = task.copyGeneration?.iterationHistory?.length || 0
+                    alert(`🎨 COPY VARIATIONS GENERATED\n\n${versionInfo}${historyCount > 0 ? ` (${historyCount} versions in history)` : ''}\n\n${task.copyGeneration?.variations?.length} variations created:\n\n${variationsList}\n\nClick the card to view full copy with interactive elements, CTAs, and TOP PICK recommendation.`)
+                  }
                 }}
                 className="flex items-center gap-1 px-2 py-0.5 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors"
-                title="View copy variations"
+                title="View copy variations and version history"
               >
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -498,6 +505,9 @@ export function TaskCard({ task, onEdit, onGenerateStrategy, onResearch, onBrave
             </div>
             <div className="text-emerald-700 leading-relaxed">
               ✓ {task.copyGeneration.variations.length} variation{task.copyGeneration.variations.length > 1 ? 's' : ''} generated
+              {task.copyGeneration.currentIteration && (
+                <span className="block">🔄 Version {task.copyGeneration.currentIteration} {task.copyGeneration.iterationHistory && task.copyGeneration.iterationHistory.length > 0 && `(${task.copyGeneration.iterationHistory.length} versions)`}</span>
+              )}
               {task.copyGeneration.metadata?.generatedAt && (
                 <span className="block">📅 {new Date(task.copyGeneration.metadata.generatedAt).toLocaleString()}</span>
               )}

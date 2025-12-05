@@ -237,7 +237,7 @@ export const useKanbanStore = create<KanbanState>()(
           ),
         })),
 
-      setTaskCopyVariations: (taskId, variations, metadata) =>
+      setTaskCopyVariations: (taskId, variations, metadata, currentIteration, iterationHistory) =>
         set((state) => ({
           tasks: state.tasks.map((task) =>
             task.id === taskId
@@ -249,6 +249,8 @@ export const useKanbanStore = create<KanbanState>()(
                     metadata,
                     isGenerating: false,
                     generatedAt: new Date().toISOString(),
+                    currentIteration: currentIteration || task.copyGeneration?.currentIteration || 1,
+                    iterationHistory: iterationHistory || task.copyGeneration?.iterationHistory || [],
                   },
                 }
               : task

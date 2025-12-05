@@ -25,6 +25,7 @@ interface BoardProps {
   onResearchTask: (task: TaskType) => void
   onBraveSearch?: (task: TaskType) => void
   onGenerateCopy?: (task: TaskType, passLevel: 'draft' | 'ai-removal' | 'polish') => void
+  onViewCopy?: (task: TaskType) => void
   onEditColumn: (column: ColumnType) => void
 }
 
@@ -35,6 +36,7 @@ export function Board({
   onResearchTask,
   onBraveSearch,
   onGenerateCopy,
+  onViewCopy,
   onEditColumn,
 }: BoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -184,6 +186,7 @@ export function Board({
               onResearchTask={onResearchTask}
               onBraveSearch={onBraveSearch}
               onGenerateCopy={onGenerateCopy}
+              onViewCopy={onViewCopy}
               onEditColumn={onEditColumn}
             />
           )

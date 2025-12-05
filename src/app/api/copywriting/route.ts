@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs/promises'
 import path from 'path'
-import { CopyVariation, CopyGenerationMetadata } from '@/lib/types'
+import { CopyVariation, CopyGenerationMetadata, IterationRecord } from '@/lib/types'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { taskId, taskTitle, researchFile, passLevel = 'draft' } = body
+    const { taskId, taskTitle, researchFile, passLevel = 'draft', currentIterationHistory = [], currentIteration = 0 } = body
 
     if (!researchFile) {
       return NextResponse.json(
@@ -103,13 +103,34 @@ export async function POST(request: NextRequest) {
     // Include TOP PICK if available
     const topPick = result.topPick || null
 
+    // Create new iteration record for version stacking
+    const newIterationNumber = currentIteration + 1
+    const newIterationRecord: IterationRecord = {
+      iterationNumber: newIterationNumber,
+      generatedAt: new Date().toISOString(),
+      variations: variations,
+      evaluation: topPick ? {
+        feedback: topPick.reasoning || '',
+        score: 8, // Default score, can be updated based on actual performance
+        strengths: [topPick.testingHypothesis || ''],
+        improvements: []
+      } : undefined
+    }
+
+    // Stack new iteration on top of history
+    const updatedIterationHistory = [...currentIterationHistory, newIterationRecord]
+
+    console.log(`✓ Version ${newIterationNumber} stacked (${updatedIterationHistory.length} total versions)`)
+
     return NextResponse.json({
       success: true,
       variations,
       metadata,
       topPick,
       passLevel,
-      generatedAt: metadata.generatedAt
+      generatedAt: metadata.generatedAt,
+      currentIteration: newIterationNumber,
+      iterationHistory: updatedIterationHistory
     })
 
   } catch (error) {

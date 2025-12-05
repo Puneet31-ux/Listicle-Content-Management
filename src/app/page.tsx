@@ -5,6 +5,7 @@ import { Board } from '@/components/kanban/board'
 import { TaskDialog } from '@/components/kanban/task-dialog'
 import { ColumnDialog } from '@/components/kanban/column-dialog'
 import { BraveResultsModal } from '@/components/kanban/brave-results-modal'
+import { CopyPreviewModal } from '@/components/kanban/copy-preview-modal'
 import { Button } from '@/components/ui/button'
 import { Task, Column } from '@/lib/types'
 import { useKanbanStore } from '@/store/kanban-store'
@@ -27,6 +28,8 @@ export default function Home() {
   const [braveLoading, setBraveLoading] = useState(false)
   const [braveTaskTitle, setBraveTaskTitle] = useState('')
   const [braveSearchQuery, setBraveSearchQuery] = useState('')
+  const [copyPreviewOpen, setCopyPreviewOpen] = useState(false)
+  const [copyPreviewTask, setCopyPreviewTask] = useState<Task | undefined>()
 
   const setTaskStrategyGenerating = useKanbanStore((state) => state.setTaskStrategyGenerating)
   const setTaskStrategy = useKanbanStore((state) => state.setTaskStrategy)
@@ -221,6 +224,33 @@ export default function Home() {
     }
   }
 
+  const handleViewCopy = (task: Task) => {
+    setCopyPreviewTask(task)
+    setCopyPreviewOpen(true)
+  }
+
+  const handleRollback = async (iterationNumber: number) => {
+    if (!copyPreviewTask) return
+
+    const iteration = copyPreviewTask.copyGeneration?.iterationHistory?.find(i => i.iterationNumber === iterationNumber)
+    if (!iteration) return
+
+    // Update task with rollback version
+    setTaskCopyVariations(
+      copyPreviewTask.id,
+      iteration.variations,
+      copyPreviewTask.copyGeneration?.metadata || {
+        generatedAt: new Date().toISOString(),
+        conversationContext: `Rolled back to Version ${iterationNumber}`
+      },
+      iterationNumber,
+      copyPreviewTask.copyGeneration?.iterationHistory || []
+    )
+
+    alert(`✅ Rolled back to Version ${iterationNumber}`)
+    setCopyPreviewOpen(false)
+  }
+
   const handleGenerateCopy = async (task: Task, passLevel: 'draft' | 'ai-removal' | 'polish') => {
     if (task.copyGeneration?.isGenerating) return
 
@@ -242,6 +272,8 @@ export default function Home() {
           taskTitle: task.title,
           researchFile: task.aiResearch.researchFile,
           passLevel,
+          currentIterationHistory: task.copyGeneration?.iterationHistory || [],
+          currentIteration: task.copyGeneration?.currentIteration || 0,
         }),
       })
 
@@ -252,13 +284,15 @@ export default function Home() {
 
       const data = await response.json()
 
-      setTaskCopyVariations(task.id, data.variations, data.metadata)
+      // Update with version stacking
+      setTaskCopyVariations(task.id, data.variations, data.metadata, data.currentIteration, data.iterationHistory)
 
-      // Show success message with TOP PICK if available
+      // Show success message with version info and TOP PICK if available
+      const versionInfo = `Version ${data.currentIteration} (${data.iterationHistory.length} total versions)`
       if (data.topPick) {
-        alert(`✅ Copy variations generated!\n\n${data.variations.length} variations created\n\n🏆 TOP PICK: Variation ${data.topPick.variationIndex + 1}\n\nReasoning: ${data.topPick.reasoning}\n\nClick "View Copy" to see all variations.`)
+        alert(`✅ Copy variations generated!\n\n${versionInfo}\n${data.variations.length} variations created\n\n🏆 TOP PICK: Variation ${data.topPick.variationIndex + 1}\n\nReasoning: ${data.topPick.reasoning}\n\nClick "View Copy" to see all variations and version history.`)
       } else {
-        alert(`✅ ${data.variations.length} copy variations generated!\n\nClick "View Copy" to review all variations.`)
+        alert(`✅ ${data.variations.length} copy variations generated!\n\n${versionInfo}\n\nClick "View Copy" to review all variations and version history.`)
       }
     } catch (error) {
       console.error('Copywriting error:', error)
@@ -371,6 +405,7 @@ export default function Home() {
           onResearchTask={handleResearchTask}
           onBraveSearch={handleBraveSearch}
           onGenerateCopy={handleGenerateCopy}
+          onViewCopy={handleViewCopy}
           onEditColumn={handleEditColumn}
         />
       </main>
@@ -398,6 +433,19 @@ export default function Home() {
         isLoading={braveLoading}
         searchQuery={braveSearchQuery}
       />
+
+      {/* Copy Preview Modal */}
+      {copyPreviewTask && copyPreviewTask.copyGeneration?.variations && (
+        <CopyPreviewModal
+          open={copyPreviewOpen}
+          onOpenChange={setCopyPreviewOpen}
+          variations={copyPreviewTask.copyGeneration.variations}
+          iterationHistory={copyPreviewTask.copyGeneration.iterationHistory}
+          currentIteration={copyPreviewTask.copyGeneration.currentIteration}
+          taskTitle={copyPreviewTask.title}
+          onRollback={handleRollback}
+        />
+      )}
     </div>
   )
 }

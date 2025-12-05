@@ -35,6 +35,7 @@ interface ColumnProps {
   onResearchTask: (task: Task) => void
   onBraveSearch?: (task: Task) => void
   onGenerateCopy?: (task: Task, passLevel: 'draft' | 'ai-removal' | 'polish') => void
+  onViewCopy?: (task: Task) => void
   onEditColumn: (column: ColumnType) => void
 }
 
@@ -47,6 +48,7 @@ export function Column({
   onResearchTask,
   onBraveSearch,
   onGenerateCopy,
+  onViewCopy,
   onEditColumn,
 }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
@@ -154,6 +156,7 @@ export function Column({
                   onResearch={onResearchTask}
                   onBraveSearch={onBraveSearch}
                   onGenerateCopy={onGenerateCopy}
+                  onViewCopy={onViewCopy}
                 />
               ))}
             </SortableContext>

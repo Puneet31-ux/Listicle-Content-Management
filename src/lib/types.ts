@@ -150,7 +150,7 @@ export interface KanbanState {
 
   // Copy Generation & Iteration
   setTaskCopyGenerating: (taskId: string, isGenerating: boolean) => void
-  setTaskCopyVariations: (taskId: string, variations: CopyVariation[], metadata: CopyGenerationMetadata) => void
+  setTaskCopyVariations: (taskId: string, variations: CopyVariation[], metadata: CopyGenerationMetadata, currentIteration?: number, iterationHistory?: IterationRecord[]) => void
   clearTaskCopyVariations: (taskId: string) => void
   addIterationRecord: (taskId: string, iterationRecord: IterationRecord) => void
   setTaskNeedsRefinement: (taskId: string, needsRefinement: boolean) => void

@@ -121,9 +121,6 @@ export async function POST(req: NextRequest) {
       `https://api.search.brave.com/res/v1/web/search?${new URLSearchParams({
         q: searchQuery,
         count: '10',
-        country: 'us',
-        search_lang: 'en',
-        freshness: 'py', // Past year for recent content
       })}`,
       {
         headers: {
@@ -134,7 +131,9 @@ export async function POST(req: NextRequest) {
     )
 
     if (!searchResponse.ok) {
-      throw new Error(`Brave Search API error: ${searchResponse.statusText}`)
+      const errorBody = await searchResponse.text()
+      console.error('Brave Search API error response:', errorBody)
+      throw new Error(`Brave Search API error (${searchResponse.status}): ${searchResponse.statusText}`)
     }
 
     const searchData = await searchResponse.json()

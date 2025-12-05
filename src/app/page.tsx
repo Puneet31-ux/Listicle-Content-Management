@@ -94,6 +94,7 @@ export default function Home() {
         scrapedUrlsCount: data.scrapedUrlsCount,
         depth: data.depth,
         iteration: data.iteration,
+        researchFile: data.researchFile, // Save the markdown filename for viewing
         isLoading: false,
       })
 

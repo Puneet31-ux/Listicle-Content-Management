@@ -36,6 +36,7 @@ export interface Task {
     scrapedUrlsCount?: number
     depth?: ResearchDepth
     iteration?: number
+    researchFile?: string // Filename of the saved markdown research file
   }
 
   // Copy Generation & Iteration (moved from WARP)

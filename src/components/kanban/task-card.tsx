@@ -211,11 +211,28 @@ export function TaskCard({ task, onEdit, onResearch, onBraveSearch }: TaskCardPr
         {/* Research Results Preview */}
         {task.aiResearch && !task.aiResearch.isLoading && (
           <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded text-xs">
-            <div className="flex items-center gap-1 text-green-800 font-medium mb-1">
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              Research Complete
+            <div className="flex items-center justify-between gap-1 text-green-800 font-medium mb-1">
+              <div className="flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                Research Complete
+              </div>
+              {task.aiResearch.researchFile && (
+                <a
+                  href={`/api/research-file/${task.aiResearch.researchFile}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-1 px-2 py-0.5 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                  title="View full research results"
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>View Details</span>
+                </a>
+              )}
             </div>
             <div className="text-green-700 leading-relaxed">
               {task.aiResearch.researchSources?.brightData && '✓ Scraped with Bright Data'}

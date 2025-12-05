@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { saveResearchToMarkdown, ResearchResults } from '@/lib/save-research'
 import { detectOfferCategory, getAnalysisQuestions } from '@/lib/analysis-framework'
+import { buildMasterResearchPrompt, buildStrategicSearchQueries, extractKeyInsights } from '@/lib/master-research-prompt'
 
 type ResearchDepth = 'surface' | 'medium' | 'deep'
 
@@ -9,6 +10,128 @@ interface ResearchRequest {
   sourceUrls?: string[]
   depth?: ResearchDepth
   iteration?: number
+}
+
+// Retry function with exponential backoff for OpenAI API
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3,
+  baseDelay = 1000
+): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options)
+
+      // If success or non-retriable error, return immediately
+      if (response.ok || (response.status !== 429 && response.status !== 500 && response.status !== 503)) {
+        return response
+      }
+
+      // If rate limited and not last attempt, retry with backoff
+      if (response.status === 429 && attempt < maxRetries) {
+        const delay = baseDelay * Math.pow(2, attempt) // Exponential backoff: 1s, 2s, 4s
+        console.log(`⏳ Rate limited. Retrying in ${delay/1000}s (attempt ${attempt + 1}/${maxRetries})...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+        continue
+      }
+
+      return response
+    } catch (error) {
+      if (attempt === maxRetries) throw error
+      const delay = baseDelay * Math.pow(2, attempt)
+      console.log(`⏳ Network error. Retrying in ${delay/1000}s (attempt ${attempt + 1}/${maxRetries})...`)
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
+  }
+
+  throw new Error('Max retries exceeded')
+}
+
+// Quality scoring function for self-healing
+function checkAnalysisQuality(analysis: any, expectedQuestions: number): {
+  score: number
+  rating: string
+  issues: string[]
+} {
+  const issues: string[] = []
+  let score = 100
+
+  // Check if analysis exists
+  if (!analysis || !analysis.analysis) {
+    return { score: 0, rating: 'Failed', issues: ['No analysis data'] }
+  }
+
+  // Count questions answered
+  let questionsAnswered = 0
+  let questionsWithEvidence = 0
+  let questionsWithInsights = 0
+  let totalAnswerLength = 0
+
+  Object.values(analysis.analysis).forEach((category: any) => {
+    if (Array.isArray(category)) {
+      category.forEach((q: any) => {
+        questionsAnswered++
+
+        // Check answer quality
+        if (q.answer) {
+          totalAnswerLength += q.answer.length
+          if (q.answer.length < 50) {
+            score -= 2 // Penalty for shallow answers
+          }
+        } else {
+          score -= 5 // Penalty for missing answer
+          issues.push(`Question ${q.question_id} missing answer`)
+        }
+
+        // Check for evidence
+        if (q.evidence && q.evidence.length > 0) {
+          questionsWithEvidence++
+        }
+
+        // Check for copywriting insights
+        if (q.copywriting_insight && q.copywriting_insight.length > 20) {
+          questionsWithInsights++
+        }
+      })
+    }
+  })
+
+  // Calculate coverage
+  const coverage = (questionsAnswered / expectedQuestions) * 100
+  if (coverage < 80) {
+    score -= 20
+    issues.push(`Only ${questionsAnswered}/${expectedQuestions} questions answered`)
+  }
+
+  // Evidence coverage
+  const evidenceRate = (questionsWithEvidence / questionsAnswered) * 100
+  if (evidenceRate < 50) {
+    score -= 15
+    issues.push(`Only ${evidenceRate.toFixed(0)}% of answers have evidence`)
+  }
+
+  // Insight coverage
+  const insightRate = (questionsWithInsights / questionsAnswered) * 100
+  if (insightRate < 50) {
+    score -= 10
+    issues.push(`Only ${insightRate.toFixed(0)}% of answers have copywriting insights`)
+  }
+
+  // Average answer length
+  const avgAnswerLength = totalAnswerLength / questionsAnswered
+  if (avgAnswerLength < 100) {
+    score -= 10
+    issues.push(`Answers are too brief (avg ${avgAnswerLength.toFixed(0)} chars)`)
+  }
+
+  // Determine rating
+  let rating = 'Excellent'
+  if (score < 60) rating = 'Poor'
+  else if (score < 75) rating = 'Fair'
+  else if (score < 90) rating = 'Good'
+
+  return { score: Math.max(0, score), rating, issues }
 }
 
 export async function POST(req: NextRequest) {
@@ -226,191 +349,41 @@ export async function POST(req: NextRequest) {
       })),
     ]
 
-    // PHASE 2 & 3: If OpenAI key is available, use it for insights
+    // PHASE 2: MASTER RESEARCH ORCHESTRATOR
+    // This is the intelligence layer that connects the analyze-listicle-offers skill
+    // to the research process - creating ONE strategic analysis instead of multiple disconnected calls
     if (openaiApiKey) {
       try {
-        // Extract insights using OpenAI
-        const insightsResponse = await fetch(
-          'https://api.openai.com/v1/chat/completions',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${openaiApiKey}`,
-            },
-            body: JSON.stringify({
-              model: 'gpt-3.5-turbo',
-              messages: [
-                {
-                  role: 'system',
-                  content: `You are an expert direct-response copywriter analyzing high-converting listicle content. Your job is to reverse-engineer the exact persuasion tactics used in competitor content.
-
-CRITICAL ANALYSIS FOCUS:
-
-**CTA Language Analysis** (MOST IMPORTANT):
-Extract the EXACT persuasive language used in calls-to-action. Look for:
-- Specific benefit amounts: "get up to $500,000", "save $2,000/month", "qualify for $50K"
-- Urgency language: "act now", "limited time", "before it's too late", "vital you act now"
-- Action-oriented phrases: "see if you qualify", "check your eligibility", "find out if you're eligible"
-- Benefit-driven CTAs: "without refinancing", "no credit check required", "completely free"
-- Emotional urgency: "don't miss out", "before rates increase", "while funds last"
-
-**Title Analysis**: Extract power words, numbers, and hooks used (e.g., "Top 10", "Hidden", "Secret")
-
-**Targeting Angles**: Find SPECIFIC demographic qualifiers (e.g., "homeowners with $50K+ equity", "seniors 62+", "credit scores below 600")
-
-**Trust Elements**: Look for EXACT proof points (e.g., "2.5M+ homeowners helped", "BBB A+ rated", "featured on CNN")
-
---- FEW-SHOT EXAMPLES (Learn from these) ---
-
-EXAMPLE 1:
-Input snippet: "Homeowners 62+ with at least $50,000 in home equity can get up to $500,000 cash without monthly payments through a reverse mortgage."
-Output:
-{
-  "targeting_angles": ["homeowners age 62 or older", "with at least $50,000 in home equity"],
-  "cta_strategies": ["get up to $500,000 cash without monthly payments"]
-}
-
-EXAMPLE 2:
-Input snippet: "Act now before interest rates increase. See if you qualify for up to $2,000/month in debt relief. No credit check required."
-Output:
-{
-  "cta_strategies": ["act now before interest rates increase", "see if you qualify for up to $2,000/month in debt relief", "no credit check required"]
-}
-
-EXAMPLE 3:
-Input snippet: "Over 2.5 million seniors have already accessed their home equity. AARP-approved lenders. Featured on CNN Money."
-Output:
-{
-  "trust_builders": ["over 2.5 million seniors helped", "AARP-approved lenders", "featured on CNN Money"]
-}
-
---- END EXAMPLES ---
-
-Return ONLY a valid JSON object with this exact structure:
-{
-  "unique_differentiators": ["specific unique value propositions found"],
-  "emotional_angles": ["emotional triggers like urgency, fear, hope"],
-  "audience_pain_points": ["specific pain points mentioned"],
-  "seo_keywords": ["high-value search terms"],
-  "trust_builders": ["EXACT trust elements: 'AARP-approved', 'over 2M helped', specific statistics"],
-  "targeting_angles": ["EXACT demographic criteria: 'homeowners 62+', 'with $50K equity', 'credit score 580+'"],
-  "cta_strategies": ["FULL CTA text with benefits: 'see if you qualify for up to $500K without refinancing', 'act now and check if you could get $2,000/month', 'find out if you're eligible before rates increase'"]
-}
-
-DO NOT write generic CTAs. Extract the ACTUAL persuasive copy from the content snippets provided, including dollar amounts, timeframes, and specific benefits. Look in extra_snippets and deep_results for the best content.`,
-                },
-                {
-                  role: 'user',
-                  content: `Topic: ${topic}\n\nCompetitor Content Analysis:\n${JSON.stringify(
-                    combinedContent,
-                    null,
-                    2
-                  )}\n\nPay special attention to entries marked "bright-data" as they contain FULL PAGE CONTENT with exact CTAs, offers, and T&Cs. Extract EXACT language from the titles, descriptions, fullContent (for bright-data sources), extra_snippets, and deep_results. Do not make up generic phrases.`,
-                },
-              ],
-              response_format: { type: 'json_object' },
-              temperature: 0.3,
-            }),
-          }
-        )
-
-        if (!insightsResponse.ok) {
-          throw new Error(`OpenAI API error: ${insightsResponse.statusText}`)
-        }
-
-        const insightsData = await insightsResponse.json()
-        const backstory = JSON.parse(
-          insightsData.choices[0].message.content || '{}'
-        )
-
-        // Validate outputs aren't generic
-        if (backstory.cta_strategies && Array.isArray(backstory.cta_strategies)) {
-          const genericTerms = ['learn more', 'get started', 'find out more', 'click here', 'read more']
-          const hasSpecifics = backstory.cta_strategies.some((cta: string) => {
-            const lowerCta = cta.toLowerCase()
-            // Check if CTA has dollar signs, numbers, or is long/specific (not just generic 2 words)
-            return cta.includes('$') || /\d+/.test(cta) || (cta.length > 30 && !genericTerms.some(term => lowerCta === term))
-          })
-
-          if (!hasSpecifics) {
-            console.warn('⚠️ Generic CTAs detected - source content may lack specific details. CTAs:', backstory.cta_strategies)
-          } else {
-            console.log('✅ Specific CTAs found with numbers/benefits:', backstory.cta_strategies.filter((cta: string) =>
-              cta.includes('$') || /\d+/.test(cta)
-            ))
-          }
-        }
-
-        // Generate final prompt
-        const promptResponse = await fetch(
-          'https://api.openai.com/v1/chat/completions',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${openaiApiKey}`,
-            },
-            body: JSON.stringify({
-              model: 'gpt-3.5-turbo',
-              messages: [
-                {
-                  role: 'system',
-                  content: `You are an expert listicle content brief creator who analyzes competitor content to create winning strategies.
-
-Generate a comprehensive, actionable content creation prompt that includes:
-
-1. **Structure**: How to organize the listicle (title format, number of items, section breakdown)
-2. **Targeting Strategy**: Specific demographic/psychographic angles to use based on competitor analysis
-3. **Emotional Hooks**: Which emotional triggers to leverage and where
-4. **Pain Point Addressing**: How to acknowledge and solve specific problems
-5. **Trust Building**: Specific credentials, stats, or proof elements to include
-6. **CTA Framework**: Exact CTAs to use, where to place them, and urgency tactics to employ
-7. **SEO Optimization**: Keyword placement strategy
-
-Make the prompt specific and actionable - not generic advice. Reference actual elements found in competitor content.`,
-                },
-                {
-                  role: 'user',
-                  content: `Topic: ${topic}\n\nBackstory:\n${JSON.stringify(
-                    backstory,
-                    null,
-                    2
-                  )}\n\nGenerate a detailed content creation prompt.`,
-                },
-              ],
-              temperature: 0.8,
-            }),
-          }
-        )
-
-        if (!promptResponse.ok) {
-          throw new Error(`OpenAI API error: ${promptResponse.statusText}`)
-        }
-
-        const promptData = await promptResponse.json()
-        const finalPrompt = promptData.choices[0].message.content || ''
-
-        // PHASE 2.5: Comprehensive Analysis Framework
-        // Detect offer category and load appropriate questions
+        console.log(`🎯 Activating Master Research Orchestrator...`)
         console.log(`🔍 Detecting offer category for: "${topic}"`)
+
+        // Detect category and get analysis framework
         const offerCategory = detectOfferCategory(topic)
         const analysisFramework = getAnalysisQuestions(offerCategory, depth)
 
-        console.log(`📋 Generating comprehensive analysis (${analysisFramework.totalQuestions} questions) for category: ${offerCategory}`)
+        console.log(`📋 Strategic Analysis - Category: ${offerCategory} | Questions: ${analysisFramework.totalQuestions} | Depth: ${depth}`)
 
-        // Format all questions for AI analysis
-        const formattedQuestions = analysisFramework.categories
-          .map(category => {
-            const questionsList = category.questions
-              .map(q => `${q.id}. ${q.question}`)
-              .join('\n\n')
-            return `## ${category.name}\n${category.description}\n\n${questionsList}`
-          })
-          .join('\n\n---\n\n')
+        // Build the master prompt that includes ALL skill intelligence
+        const masterPrompt = buildMasterResearchPrompt(
+          topic,
+          offerCategory,
+          analysisFramework.categories.flatMap(cat =>
+            cat.questions.map(q => ({
+              id: q.id,
+              category: cat.name,
+              subcategory: q.subcategory,
+              question: q.question,
+              purpose: q.purpose
+            }))
+          ),
+          scrapedContent,
+          researchSummary
+        )
 
-        // Use OpenAI to answer all questions based on scraped content
-        const analysisResponse = await fetch(
+        console.log(`🚀 Sending strategic prompt to GPT-5-mini (${masterPrompt.length} chars)`)
+
+        // SINGLE strategic call with all context
+        const analysisResponse = await fetchWithRetry(
           'https://api.openai.com/v1/chat/completions',
           {
             method: 'POST',
@@ -419,93 +392,138 @@ Make the prompt specific and actionable - not generic advice. Reference actual e
               Authorization: `Bearer ${openaiApiKey}`,
             },
             body: JSON.stringify({
-              model: 'gpt-4o-mini', // Use cheaper model for long analysis
+              model: 'gpt-5-mini-2025-08-07', // Start with cheapest - auto-upgrade if quality issues
               messages: [
                 {
-                  role: 'system',
-                  content: `You are an expert listicle offer analyst. Your job is to answer comprehensive deep-dive questions about an offer based on competitor content analysis.
-
-**Your Analysis Must:**
-1. Be specific and detailed - cite actual phrases, numbers, and examples from the content provided
-2. Identify gaps - if information is missing, say "Information not found in source content - recommend gathering [specific data]"
-3. Extract exact language - when analyzing CTAs, pain points, or messaging, quote directly from sources
-4. Think psychologically - understand reader motivations, fears, and desires
-5. Be actionable - every answer should help a copywriter craft better listicle content
-
-**Answer Format:**
-For each question, provide:
-- **Direct Answer:** The specific answer based on source analysis
-- **Evidence:** Quotes or specific details from the scraped content that support your answer
-- **Gaps:** What information is missing that would strengthen the analysis
-- **Copywriting Insight:** How this answer should inform the listicle copy
-
-Return your analysis as a JSON object with this structure:
-{
-  "category": "offer category",
-  "analysis": {
-    "Core Offer Mechanics": [
-      {
-        "question_id": 1,
-        "question": "...",
-        "answer": "...",
-        "evidence": ["quote 1", "quote 2"],
-        "gaps": "...",
-        "copywriting_insight": "..."
-      }
-    ],
-    "Reader Psychology & Pain Points": [...],
-    ...
-  }
-}`
-                },
-                {
                   role: 'user',
-                  content: `**Offer Topic:** ${topic}
-
-**Research Sources:**
-${JSON.stringify(combinedContent, null, 2)}
-
-**Basic Insights Already Extracted:**
-${JSON.stringify(backstory, null, 2)}
-
----
-
-**COMPREHENSIVE ANALYSIS QUESTIONS:**
-
-${formattedQuestions}
-
----
-
-Analyze all provided content and answer each question thoroughly. Be specific, cite evidence, identify gaps, and provide actionable copywriting insights.`
+                  content: masterPrompt
                 }
               ],
               response_format: { type: 'json_object' },
               temperature: 0.4,
-              max_tokens: 4000
+              max_completion_tokens: 8000
             }),
           }
         )
 
-        let comprehensiveAnalysis = null
-        if (analysisResponse.ok) {
-          const analysisData = await analysisResponse.json()
-          comprehensiveAnalysis = JSON.parse(
-            analysisData.choices[0].message.content || '{}'
-          )
-          console.log(`✅ Comprehensive analysis complete with ${analysisFramework.totalQuestions} questions answered`)
-        } else {
-          console.warn('⚠️ Comprehensive analysis failed, continuing with basic insights only')
+        if (!analysisResponse.ok) {
+          const errorText = await analysisResponse.text()
+          throw new Error(`OpenAI API error (${analysisResponse.status}): ${errorText}`)
         }
+
+        let modelUsed = 'gpt-5-mini-2025-08-07'
+        let finalQualityScore: any = null
+
+        const analysisData = await analysisResponse.json()
+        let comprehensiveAnalysis = JSON.parse(
+          analysisData.choices[0].message.content || '{}'
+        )
+
+        // Self-Healing: Check analysis quality
+        const qualityScore = checkAnalysisQuality(comprehensiveAnalysis, analysisFramework.totalQuestions)
+        finalQualityScore = qualityScore
+        console.log(`📊 Analysis quality score: ${qualityScore.score}/100 (${qualityScore.rating})`)
+
+        // If quality is poor, auto-upgrade to gpt-5.1
+        if (qualityScore.score < 60) {
+          console.log(`⚠️ Quality too low (${qualityScore.score}/100). Auto-upgrading to gpt-5.1-2025-11-14...`)
+          console.log(`   Issues: ${qualityScore.issues.join(', ')}`)
+
+          try {
+            const retryResponse = await fetchWithRetry(
+              'https://api.openai.com/v1/chat/completions',
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${openaiApiKey}`,
+                },
+                body: JSON.stringify({
+                  model: 'gpt-5.1-2025-11-14', // Upgraded model for better quality
+                  messages: [
+                    {
+                      role: 'user',
+                      content: masterPrompt
+                    }
+                  ],
+                  response_format: { type: 'json_object' },
+                  temperature: 0.4,
+                  max_completion_tokens: 16000 // More tokens for better model
+                }),
+              }
+            )
+
+            if (retryResponse.ok) {
+              const retryData = await retryResponse.json()
+              comprehensiveAnalysis = JSON.parse(
+                retryData.choices[0].message.content || '{}'
+              )
+              modelUsed = 'gpt-5.1-2025-11-14'
+              const newQualityScore = checkAnalysisQuality(comprehensiveAnalysis, analysisFramework.totalQuestions)
+              finalQualityScore = newQualityScore
+              console.log(`✅ Upgraded analysis complete. New quality score: ${newQualityScore.score}/100 (${newQualityScore.rating})`)
+            } else {
+              console.warn(`⚠️ Upgrade to gpt-5.1-2025-11-14 failed, using gpt-5-mini-2025-08-07 results`)
+            }
+          } catch (retryError) {
+            console.error('Auto-upgrade error:', retryError)
+            console.log(`   Continuing with gpt-5-mini-2025-08-07 results`)
+          }
+        } else {
+          console.log(`✅ Master analysis complete with ${analysisFramework.totalQuestions} questions answered using ${modelUsed}`)
+        }
+
+        // Extract copywriting-ready insights from the comprehensive analysis
+        const insights = extractKeyInsights(comprehensiveAnalysis)
+
+        // Build backwards-compatible backstory for frontend
+        const backstory = {
+          unique_differentiators: comprehensiveAnalysis.research_strategy?.differentiation_opportunities || [],
+          emotional_angles: comprehensiveAnalysis.research_strategy?.key_motivators || [],
+          audience_pain_points: comprehensiveAnalysis.research_strategy?.primary_pain_points || [],
+          seo_keywords: [], // Will be populated from analysis
+          trust_builders: comprehensiveAnalysis.copywriting_ready_output?.trust_building_elements || [],
+          targeting_angles: [comprehensiveAnalysis.research_strategy?.target_audience || 'General audience'],
+          cta_strategies: comprehensiveAnalysis.copywriting_ready_output?.cta_recommendations || []
+        }
+
+        // Generate final prompt from the copywriting-ready output
+        const finalPrompt = `# COPYWRITING BRIEF: ${topic}
+
+## Positioning
+${insights.positioning}
+
+## Primary Hook
+${insights.primaryHook}
+
+## Target Pain Points
+${insights.painPoints.map((p: string, i: number) => `${i + 1}. ${p}`).join('\n')}
+
+## Recommended CTAs
+${insights.ctaRecommendations.map((cta: string, i: number) => `${i + 1}. ${cta}`).join('\n')}
+
+## Trust Elements to Emphasize
+${insights.trustElements.map((t: string, i: number) => `${i + 1}. ${t}`).join('\n')}
+
+## Strategic Direction
+${comprehensiveAnalysis.research_strategy?.competitive_landscape || 'Focus on delivering clear value and addressing reader pain points.'}
+
+---
+
+*This brief is powered by the 50-question analyze-listicle-offers framework and ready for the write-listicle-copy skill.*`
 
         // Collect OpenAI insights for markdown file
         collectedOpenAIInsights = {
           finalPrompt,
           backstory,
-          comprehensiveAnalysis: comprehensiveAnalysis || undefined,
+          comprehensiveAnalysis,
           analysisFramework: {
             category: offerCategory,
             totalQuestions: analysisFramework.totalQuestions,
-            depth
+            depth,
+            modelUsed,
+            qualityScore: finalQualityScore?.score,
+            qualityRating: finalQualityScore?.rating
           }
         }
 

@@ -246,6 +246,68 @@
         "license": "MIT"
       }
     },
+    "skill-standards": {
+      "version": "1.0.0",
+      "description": "Auto-enforced standards for ALL skills - ensures consistent quality, self-healing, help commands, and setup prompts",
+      "category": "skill-framework",
+      "tags": ["standards", "quality", "enforcement", "foundational", "meta-skill"],
+      "projectFiles": [
+        ".claude/skills/skill-standards.md",
+        ".claude/skills/skill-standards/SKILL.md",
+        ".claude/skills/skill-standards/STANDARDS_CHECKLIST.md",
+        ".claude/skills/skill-standards/SELF_HEALING.md",
+        ".claude/skills/skill-standards/AUTO_ENFORCE.md"
+      ],
+      "requiredCommands": {
+        "description": "Commands that MUST exist in .claude/settings.json for this feature to work",
+        "commands": [
+          "standards-check",
+          "standards-fix",
+          "standards-list",
+          "standards-add",
+          "standards-feedback",
+          "standards-help"
+        ],
+        "validation": {
+          "checkOnLoad": true,
+          "alertIfMissing": true,
+          "autoFix": false,
+          "errorMessage": "MISSING COMMANDS: The following standards commands are missing from .claude/settings.json: {missing}. Run /sync-pull to fix."
+        }
+      },
+      "userFiles": [
+        "~/.claude/settings.json",
+        "~/.claude/skills/skill-standards.md",
+        "~/.claude/skills/skill-standards/SKILL.md",
+        "~/.claude/skills/skill-standards/STANDARDS_CHECKLIST.md",
+        "~/.claude/skills/skill-standards/SELF_HEALING.md",
+        "~/.claude/skills/skill-standards/AUTO_ENFORCE.md"
+      ],
+      "linkedRepos": [
+        "Listicle-Content-Management"
+      ],
+      "dependencies": ["self-healing"],
+      "isFavorite": true,
+      "autoApply": true,
+      "isFoundational": true,
+      "applyToNewSkills": true,
+      "changelog": [
+        {
+          "version": "1.0.0",
+          "date": "2025-12-05",
+          "author": "Bobby",
+          "type": "feature",
+          "changes": "Initial release: 16 standards across 4 categories (Structure, Behaviors, Documentation, Quality) with auto-enforcement"
+        }
+      ],
+      "metadata": {
+        "createdAt": "2025-12-05T17:00:00Z",
+        "updatedAt": "2025-12-05T17:00:00Z",
+        "status": "active",
+        "maturity": "stable",
+        "license": "MIT"
+      }
+    },
     "internal-install-helper": {
       "version": "1.1.0",
       "description": "Intelligent sync system for managing user features and workflows across team members and repositories",

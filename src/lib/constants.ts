@@ -3,21 +3,24 @@ import { Column } from './types'
 export const DEFAULT_COLUMNS: Column[] = [
   {
     id: 'todo',
-    title: 'TODO',
+    title: 'Research Queue',
     order: 0,
     color: '#3b82f6', // blue-500
+    description: 'Add listicle offers here. Run AI Research to analyze competitors and extract insights.',
   },
   {
     id: 'in-progress',
-    title: 'In Progress',
+    title: 'Writing',
     order: 1,
     color: '#f59e0b', // amber-500
+    description: 'Tasks with completed research. Use insights to write compelling copy.',
   },
   {
     id: 'completed',
-    title: 'Completed',
+    title: 'Ready to Publish',
     order: 2,
     color: '#10b981', // emerald-500
+    description: 'Final copy is written and ready for publishing.',
   },
 ]
 

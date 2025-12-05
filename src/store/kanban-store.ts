@@ -181,84 +181,16 @@ export const useKanbanStore = create<KanbanState>()(
           ),
         })),
 
-      // WARP Skill operations
-      setTaskWarpLoading: (taskId, isLoading) =>
-        set((state) => ({
-          tasks: state.tasks.map((task) =>
-            task.id === taskId
-              ? {
-                  ...task,
-                  warpSkill: {
-                    ...(task.warpSkill || { messages: [] }),
-                    isLoading,
-                  },
-                }
-              : task
-          ),
-        })),
-
-      addWarpMessage: (taskId, message) =>
-        set((state) => ({
-          tasks: state.tasks.map((task) =>
-            task.id === taskId
-              ? {
-                  ...task,
-                  warpSkill: {
-                    ...(task.warpSkill || { messages: [] }),
-                    messages: [
-                      ...(task.warpSkill?.messages || []),
-                      {
-                        ...message,
-                        timestamp: new Date().toISOString(),
-                      },
-                    ],
-                    lastUpdated: new Date().toISOString(),
-                  },
-                }
-              : task
-          ),
-        })),
-
-      setTaskWarpCategory: (taskId, category) =>
-        set((state) => ({
-          tasks: state.tasks.map((task) =>
-            task.id === taskId
-              ? {
-                  ...task,
-                  warpSkill: {
-                    ...(task.warpSkill || { messages: [] }),
-                    category,
-                  },
-                }
-              : task
-          ),
-        })),
-
-      clearWarpConversation: (taskId) =>
-        set((state) => ({
-          tasks: state.tasks.map((task) =>
-            task.id === taskId
-              ? {
-                  ...task,
-                  warpSkill: {
-                    messages: [],
-                    isLoading: false,
-                  },
-                }
-              : task
-          ),
-        })),
-
-      // Layer 2: Copy Generation operations
+      // Copy Generation operations
       setTaskCopyGenerating: (taskId, isGenerating) =>
         set((state) => ({
           tasks: state.tasks.map((task) =>
             task.id === taskId
               ? {
                   ...task,
-                  warpSkill: {
-                    ...(task.warpSkill || { messages: [] }),
-                    isCopyGenerating: isGenerating,
+                  copyGeneration: {
+                    ...(task.copyGeneration || {}),
+                    isGenerating,
                   },
                 }
               : task
@@ -271,12 +203,12 @@ export const useKanbanStore = create<KanbanState>()(
             task.id === taskId
               ? {
                   ...task,
-                  warpSkill: {
-                    ...(task.warpSkill || { messages: [] }),
-                    copyVariations: variations,
-                    copyMetadata: metadata,
-                    isCopyGenerating: false,
-                    copyGeneratedAt: new Date().toISOString(),
+                  copyGeneration: {
+                    ...(task.copyGeneration || {}),
+                    variations,
+                    metadata,
+                    isGenerating: false,
+                    generatedAt: new Date().toISOString(),
                   },
                 }
               : task
@@ -289,13 +221,7 @@ export const useKanbanStore = create<KanbanState>()(
             task.id === taskId
               ? {
                   ...task,
-                  warpSkill: {
-                    ...(task.warpSkill || { messages: [] }),
-                    copyVariations: undefined,
-                    copyMetadata: undefined,
-                    isCopyGenerating: false,
-                    copyGeneratedAt: undefined,
-                  },
+                  copyGeneration: undefined,
                 }
               : task
           ),
@@ -308,10 +234,10 @@ export const useKanbanStore = create<KanbanState>()(
             task.id === taskId
               ? {
                   ...task,
-                  warpSkill: {
-                    ...(task.warpSkill || { messages: [] }),
+                  copyGeneration: {
+                    ...(task.copyGeneration || {}),
                     iterationHistory: [
-                      ...(task.warpSkill?.iterationHistory || []),
+                      ...(task.copyGeneration?.iterationHistory || []),
                       iterationRecord,
                     ],
                     currentIteration: iterationRecord.iterationNumber,
@@ -327,8 +253,8 @@ export const useKanbanStore = create<KanbanState>()(
             task.id === taskId
               ? {
                   ...task,
-                  warpSkill: {
-                    ...(task.warpSkill || { messages: [] }),
+                  copyGeneration: {
+                    ...(task.copyGeneration || {}),
                     needsRefinement,
                   },
                 }

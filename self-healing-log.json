@@ -1,0 +1,27 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-12-05T06:00:00.000Z",
+  "improvements": [],
+  "metrics": {
+    "totalResearches": 0,
+    "successRate": 0,
+    "averageQualityScore": 0,
+    "apiPerformance": {
+      "braveSearch": {
+        "totalCalls": 0,
+        "successRate": 0,
+        "averageResultsCount": 0
+      },
+      "brightData": {
+        "totalCalls": 0,
+        "successRate": 0,
+        "averageScrapedPages": 0
+      },
+      "openAI": {
+        "totalCalls": 0,
+        "successRate": 0,
+        "averageResponseTime": 0
+      }
+    }
+  }
+}

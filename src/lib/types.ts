@@ -38,22 +38,12 @@ export interface Task {
     iteration?: number
   }
 
-  // WARP Skill fields
-  warpSkill?: {
-    messages: Array<{
-      role: 'user' | 'assistant'
-      content: string
-      timestamp: string
-    }>
-    category?: string // Financial, Home Services, etc.
-    isLoading?: boolean
-    lastUpdated?: string
-    // Layer 2: Copy Generation
-    copyVariations?: CopyVariation[]
-    copyMetadata?: CopyGenerationMetadata
-    isCopyGenerating?: boolean
-    copyGeneratedAt?: string
-    // Iteration & Refinement Loop
+  // Copy Generation & Iteration (moved from WARP)
+  copyGeneration?: {
+    variations?: CopyVariation[]
+    metadata?: CopyGenerationMetadata
+    isGenerating?: boolean
+    generatedAt?: string
     iterationHistory?: IterationRecord[]
     currentIteration?: number
     needsRefinement?: boolean
@@ -110,6 +100,7 @@ export interface Column {
   title: string
   order: number
   color?: string // Optional accent color
+  description?: string // Helpful description of what this column is for
 }
 
 export interface KanbanState {
@@ -132,18 +123,10 @@ export interface KanbanState {
   setTaskResearchLoading: (taskId: string, isLoading: boolean) => void
   setTaskResearch: (taskId: string, research: Task['aiResearch']) => void
 
-  // WARP Skill
-  setTaskWarpLoading: (taskId: string, isLoading: boolean) => void
-  addWarpMessage: (taskId: string, message: { role: 'user' | 'assistant'; content: string }) => void
-  setTaskWarpCategory: (taskId: string, category: string) => void
-  clearWarpConversation: (taskId: string) => void
-
-  // Layer 2: Copy Generation
+  // Copy Generation & Iteration
   setTaskCopyGenerating: (taskId: string, isGenerating: boolean) => void
   setTaskCopyVariations: (taskId: string, variations: CopyVariation[], metadata: CopyGenerationMetadata) => void
   clearTaskCopyVariations: (taskId: string) => void
-
-  // Iteration & Refinement
   addIterationRecord: (taskId: string, iterationRecord: IterationRecord) => void
   setTaskNeedsRefinement: (taskId: string, needsRefinement: boolean) => void
 }

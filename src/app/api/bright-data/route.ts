@@ -163,35 +163,76 @@ export async function POST(req: NextRequest) {
 
     console.log(`🔍 Bright Data: Scraping ${urls.length} URLs in "${mode}" mode...`)
 
-    // Scrape all URLs using the MCP tool
+    // Check if we're in development mode (test without actual API call)
+    const isDevelopment = process.env.NODE_ENV === 'development'
+
+    // Scrape all URLs
     const scrapePromises = urls.map(async (url: string): Promise<ScrapedContent> => {
       try {
-        // Note: We're calling the external Bright Data API through their proxy
-        // The MCP tool mcp__brightdata__scrape_as_markdown would be ideal but
-        // we need to call it from the server side, so we'll use direct API
-        const response = await fetch(`https://api.brightdata.com/datasets/v3/trigger?dataset_id=gd_l7q7dkf244hwjntr0&include_errors=true`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${brightDataApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify([{
-            url: url,
-            format: 'markdown',
-          }]),
-        })
+        let html = ''
 
-        if (!response.ok) {
-          throw new Error(`Bright Data API error: ${response.statusText}`)
+        if (isDevelopment) {
+          // DEVELOPMENT MODE: Fetch directly (bypass Bright Data for testing)
+          console.log(`⚠️ DEV MODE: Fetching ${url} directly (not using Bright Data)`)
+          const response = await fetch(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+            },
+          })
+
+          if (!response.ok) {
+            throw new Error(`Fetch error: ${response.statusText}`)
+          }
+
+          html = await response.text()
+        } else {
+          // PRODUCTION MODE: Use Bright Data API
+          const response = await fetch('https://api.brightdata.com/request', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${brightDataApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              zone: process.env.BRIGHT_DATA_ZONE,
+              url: url,
+              format: 'html',
+              country: 'us',
+            }),
+          })
+
+          if (!response.ok) {
+            const errorText = await response.text()
+            throw new Error(`Bright Data API error (${response.status}): ${errorText}`)
+          }
+
+          html = await response.text()
         }
 
-        const data = await response.json()
-
-        // Extract the markdown content
-        let content = ''
-        if (data && data.length > 0 && data[0].page_content) {
-          content = data[0].page_content
-        }
+        // Simple HTML to markdown conversion
+        // In production, consider using a library like turndown
+        let content = html
+          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+          .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+          .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
+          .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n')
+          .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n')
+          .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<a[^>]*href=["']([^"']*)["'][^>]*>(.*?)<\/a>/gi, '[$2]($1)')
+          .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+          .replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**')
+          .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
+          .replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
+          .replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n')
+          .replace(/<[^>]+>/g, '')
+          .replace(/\n{3,}/g, '\n\n')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .trim()
 
         const scrapedContent: ScrapedContent = {
           url,

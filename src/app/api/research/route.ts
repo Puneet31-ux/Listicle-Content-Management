@@ -10,6 +10,11 @@ interface ResearchRequest {
 }
 
 export async function POST(req: NextRequest) {
+  const startTime = Date.now()
+  let braveStartTime = 0, braveEndTime = 0
+  let brightDataStartTime = 0, brightDataEndTime = 0
+  let openAIStartTime = 0, openAIEndTime = 0
+
   try {
     const {
       topic,

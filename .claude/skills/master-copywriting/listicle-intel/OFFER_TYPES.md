@@ -4,15 +4,38 @@
 
 Central registry of all offer types that have been analyzed. Check here before running Brightdata research to see if intel already exists.
 
+**See also:** `AUDIENCE_CHECK.md` for the audience detection checkbox system.
+
+---
+
+## Audience Detection Quick Reference
+
+```
+🎯 AUDIENCE CHECK (on every listicle):
+[ ] NOT Senior Listicle (check if different audience)
+
+DEFAULT: Senior (50-75+) - leave unchecked
+OVERRIDE: Check box if not senior
+```
+
 ---
 
 ## Audience Categories (Primary)
 
 These are audience-first categories that span multiple offer types.
 
-| Audience | Description | Last Updated | Offers Covered | Status |
-|----------|-------------|--------------|----------------|--------|
-| **senior-listicles** | 50-75+ focused content | 2025-12-05 | HELOC, discounts, Medicare, income | Active |
+| Audience | Description | Last Updated | Offers Covered | Intel Status |
+|----------|-------------|--------------|----------------|--------------|
+| **senior-listicles** | 50-75+ focused content | 2025-12-05 | HELOC, discounts, Medicare, income | FULL |
+| general-homeowners | Age-neutral homeowner content | - | - | NONE |
+| young-professionals | 25-40 career/finance focused | - | - | NONE |
+| families | Parents with children | - | - | NONE |
+| small-business | Business owner focused | - | - | NONE |
+
+**Intel Status Key:**
+- **FULL** = Complete knowledge base (patterns, psychology, CTAs)
+- **PARTIAL** = Some patterns extracted, needs more research
+- **NONE** = No intel yet, needs /listicle-research
 
 ---
 

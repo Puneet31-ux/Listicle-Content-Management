@@ -11,6 +11,29 @@ This sub-skill ONLY activates when:
 
 ---
 
+## Audience Detection (REQUIRED FIRST STEP)
+
+**Default Audience:** Senior Listicles (50-75+)
+**See:** `AUDIENCE_CHECK.md` for full checkbox system
+
+### Quick Check
+```
+🎯 AUDIENCE CHECK (before ANY listicle work)
+
+Is this for SENIORS (50-75+)?
+  [ ] YES - Load senior intel (default)
+  [ ] NO  - Check box, specify audience
+
+If NO is checked → See AUDIENCE_CHECK.md for non-senior options
+```
+
+### Why This Matters
+- Senior listicles have FULL knowledge base (patterns, psychology, CTAs)
+- Non-senior audiences may need new research or adapted patterns
+- Loading wrong intel = wrong tone, wrong triggers, lower conversion
+
+---
+
 ## Activation Triggers
 
 ### Auto-Activate When:

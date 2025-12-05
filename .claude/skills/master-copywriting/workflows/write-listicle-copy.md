@@ -13,6 +13,50 @@ Creates high-converting listicle copy from analyzed offers. Listicles are not bl
 
 ## Phase 1: Context Gathering
 
+### Step 0: Audience Detection (REQUIRED FIRST)
+
+Complete the Item Card before proceeding:
+
+```
+╔════════════════════════════════════════════════════════════════╗
+║  📋 LISTICLE COPY ITEM CARD                                    ║
+╠════════════════════════════════════════════════════════════════╣
+║                                                                ║
+║  OFFER TYPE: ____________________                              ║
+║                                                                ║
+║  ──────────────────────────────────────────────────────────── ║
+║                                                                ║
+║  🎯 AUDIENCE CHECK:                                           ║
+║                                                                ║
+║  [ ] NOT Senior Listicle (check if different audience)        ║
+║                                                                ║
+║      If checked, specify:                                     ║
+║      ○ General Homeowners    ○ Young Professionals            ║
+║      ○ Families              ○ Small Business                 ║
+║      ○ Other: ____________________                            ║
+║                                                                ║
+║  ──────────────────────────────────────────────────────────── ║
+║                                                                ║
+║  📁 KNOWLEDGE BASE:                                           ║
+║  [ ] Senior intel loaded (default)                            ║
+║  [ ] Non-senior - using: ____________________                 ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+```
+
+**If box is UNCHECKED (Senior - Default):**
+- Load: `listicle-intel/analysis/senior-listicles/patterns.md`
+- Load: `listicle-intel/analysis/senior-listicles/psychology.md`
+- Load: `listicle-intel/analysis/senior-listicles/cta-library.md`
+- Load: `listicle-intel/analysis/senior-listicles/sub-offers/[offer].md` (if exists)
+
+**If box is CHECKED (Non-Senior):**
+- Check if audience intel exists in `listicle-intel/analysis/[audience]/`
+- If no intel: Offer to research OR use general patterns
+- See: `listicle-intel/AUDIENCE_CHECK.md` for options
+
+---
+
 ### Required Inputs
 
 Before writing, I need:
@@ -23,8 +67,9 @@ Before writing, I need:
    - What's the pricing structure?
    - What differentiates this from competitors?
 
-2. **Target Audience:**
-   - Who is searching for this?
+2. **Target Audience:** (from Item Card above)
+   - Senior (50-75+) → Full intel available
+   - Non-Senior → Specify which audience
    - What problem are they trying to solve?
    - What have they already tried?
    - What are they afraid of?

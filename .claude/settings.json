@@ -1,5 +1,21 @@
 {
   "commands": {
+    "worktree-create": {
+      "description": "Create new git worktree with safety checks",
+      "prompt": "I need to create a new git worktree. Please follow the instructions in .claude/commands/worktree-create.md to create a worktree with comprehensive safety checks including: clean working directory verification, base branch validation, duplicate prevention, and automatic dependency installation."
+    },
+    "worktree-list": {
+      "description": "List all active worktrees with health monitoring",
+      "prompt": "Show me the status of all my git worktrees. Please follow the instructions in .claude/commands/worktree-list.md to display a comprehensive dashboard with: main repo status, all active worktrees, health checks, cleanup suggestions, and uncommitted changes warnings."
+    },
+    "worktree-cleanup": {
+      "description": "Clean up merged worktrees safely",
+      "prompt": "Help me clean up merged git worktrees. Please follow the instructions in .claude/commands/worktree-cleanup.md to safely remove merged branches with: merge verification, uncommitted change blocking, user confirmation, and automatic reference pruning."
+    },
+    "worktree-switch": {
+      "description": "Switch to existing worktree or create from existing branch",
+      "prompt": "I want to switch to a git worktree. Please follow the instructions in .claude/commands/worktree-switch.md to find existing worktrees or create new ones from existing branches with proper validation and navigation help."
+    },
     "worktree-help": {
       "description": "Show worktree commands cheat sheet and examples",
       "prompt": "Show me the complete worktree help guide. Read .claude/commands/worktree-help.md and display the full cheat sheet with all available commands, examples, usage tips, and troubleshooting. Help me understand what each command does and guide me through using them."

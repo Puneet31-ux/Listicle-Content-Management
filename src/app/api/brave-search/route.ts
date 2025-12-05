@@ -108,12 +108,17 @@ export async function POST(req: NextRequest) {
     let searchQuery = topic
 
     if (braveInput && braveInput.trim()) {
-      // Use the user's specific search input
-      searchQuery = braveInput.trim()
+      // Use the user's specific search input (truncate to Brave's 400 char limit)
+      searchQuery = braveInput.trim().substring(0, 400)
     } else {
       // Create an intelligent query to find relevant articles/listicles
       const currentYear = new Date().getFullYear()
       searchQuery = `"${topic}" (listicle OR article OR guide) ${currentYear} OR ${currentYear - 1}`
+    }
+
+    // Ensure query doesn't exceed Brave's 400 character limit
+    if (searchQuery.length > 400) {
+      searchQuery = searchQuery.substring(0, 400)
     }
 
     // Brave Search API call

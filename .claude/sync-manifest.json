@@ -176,6 +176,76 @@
         "license": "MIT"
       }
     },
+    "self-healing": {
+      "version": "1.0.0",
+      "description": "Universal self-healing framework for all skills - captures VALUE LESSONS, maintains audit trails, and ensures continuous improvement",
+      "category": "skill-framework",
+      "tags": ["self-healing", "feedback", "continuous-improvement", "meta-skill", "framework"],
+      "projectFiles": [
+        ".claude/skills/self-healing.md",
+        ".claude/skills/self-healing/SKILL.md",
+        ".claude/skills/self-healing/CORE.md",
+        ".claude/skills/self-healing/AUDIT_LOG.md",
+        ".claude/skills/self-healing/templates/SKILL_TEMPLATE.md",
+        ".claude/skills/self-healing/templates/HEALING_SECTION.md",
+        ".claude/skills/self-healing/examples/master-copywriting-example.md"
+      ],
+      "requiredCommands": {
+        "description": "Commands that MUST exist in .claude/settings.json for this feature to work",
+        "commands": [
+          "heal-log",
+          "heal-status",
+          "heal-review",
+          "heal-create",
+          "heal-help"
+        ],
+        "validation": {
+          "checkOnLoad": true,
+          "alertIfMissing": true,
+          "autoFix": false,
+          "errorMessage": "⚠️ MISSING COMMANDS: The following self-healing commands are missing from .claude/settings.json: {missing}. Run /sync-pull to fix or manually add them."
+        }
+      },
+      "userFiles": [
+        "~/.claude/settings.json",
+        "~/.claude/skills/self-healing.md",
+        "~/.claude/skills/self-healing/SKILL.md",
+        "~/.claude/skills/self-healing/CORE.md",
+        "~/.claude/skills/self-healing/AUDIT_LOG.md",
+        "~/.claude/skills/self-healing/templates/SKILL_TEMPLATE.md",
+        "~/.claude/skills/self-healing/templates/HEALING_SECTION.md",
+        "~/.claude/skills/self-healing/examples/master-copywriting-example.md"
+      ],
+      "linkedRepos": [
+        "Listicle-Content-Management"
+      ],
+      "dependencies": [],
+      "isFavorite": true,
+      "autoApply": true,
+      "isFoundational": true,
+      "applyToNewSkills": true,
+      "checksum": {
+        "algorithm": "sha256",
+        "manifest": "",
+        "files": {}
+      },
+      "changelog": [
+        {
+          "version": "1.0.0",
+          "date": "2025-12-05",
+          "author": "Bobby",
+          "type": "feature",
+          "changes": "Initial release: Universal self-healing framework with VALUE LESSON capture, audit trails, skill templates, and cross-skill learning"
+        }
+      ],
+      "metadata": {
+        "createdAt": "2025-12-05T14:00:00Z",
+        "updatedAt": "2025-12-05T14:00:00Z",
+        "status": "active",
+        "maturity": "stable",
+        "license": "MIT"
+      }
+    },
     "internal-install-helper": {
       "version": "1.1.0",
       "description": "Intelligent sync system for managing user features and workflows across team members and repositories",

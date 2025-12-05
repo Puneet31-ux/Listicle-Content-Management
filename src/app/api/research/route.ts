@@ -380,7 +380,7 @@ export async function POST(req: NextRequest) {
           researchSummary
         )
 
-        console.log(`🚀 Sending strategic prompt to GPT-5-mini (${masterPrompt.length} chars)`)
+        console.log(`🚀 Sending strategic prompt to gpt-4o-mini (${masterPrompt.length} chars)`)
 
         // SINGLE strategic call with all context
         const analysisResponse = await fetchWithRetry(
@@ -392,7 +392,7 @@ export async function POST(req: NextRequest) {
               Authorization: `Bearer ${openaiApiKey}`,
             },
             body: JSON.stringify({
-              model: 'gpt-5-mini-2025-08-07', // Start with cheapest - auto-upgrade if quality issues
+              model: 'gpt-4o-mini', // Start with cheapest - auto-upgrade if quality issues
               messages: [
                 {
                   role: 'user',
@@ -411,7 +411,7 @@ export async function POST(req: NextRequest) {
           throw new Error(`OpenAI API error (${analysisResponse.status}): ${errorText}`)
         }
 
-        let modelUsed = 'gpt-5-mini-2025-08-07'
+        let modelUsed = 'gpt-4o-mini'
         let finalQualityScore: any = null
 
         const analysisData = await analysisResponse.json()
@@ -424,9 +424,9 @@ export async function POST(req: NextRequest) {
         finalQualityScore = qualityScore
         console.log(`📊 Analysis quality score: ${qualityScore.score}/100 (${qualityScore.rating})`)
 
-        // If quality is poor, auto-upgrade to gpt-5.1
+        // If quality is poor, auto-upgrade to gpt-4o
         if (qualityScore.score < 60) {
-          console.log(`⚠️ Quality too low (${qualityScore.score}/100). Auto-upgrading to gpt-5.1-2025-11-14...`)
+          console.log(`⚠️ Quality too low (${qualityScore.score}/100). Auto-upgrading to gpt-4o...`)
           console.log(`   Issues: ${qualityScore.issues.join(', ')}`)
 
           try {
@@ -439,7 +439,7 @@ export async function POST(req: NextRequest) {
                   Authorization: `Bearer ${openaiApiKey}`,
                 },
                 body: JSON.stringify({
-                  model: 'gpt-5.1-2025-11-14', // Upgraded model for better quality
+                  model: 'gpt-4o', // Upgraded model for better quality
                   messages: [
                     {
                       role: 'user',
@@ -458,16 +458,16 @@ export async function POST(req: NextRequest) {
               comprehensiveAnalysis = JSON.parse(
                 retryData.choices[0].message.content || '{}'
               )
-              modelUsed = 'gpt-5.1-2025-11-14'
+              modelUsed = 'gpt-4o'
               const newQualityScore = checkAnalysisQuality(comprehensiveAnalysis, analysisFramework.totalQuestions)
               finalQualityScore = newQualityScore
               console.log(`✅ Upgraded analysis complete. New quality score: ${newQualityScore.score}/100 (${newQualityScore.rating})`)
             } else {
-              console.warn(`⚠️ Upgrade to gpt-5.1-2025-11-14 failed, using gpt-5-mini-2025-08-07 results`)
+              console.warn(`⚠️ Upgrade to gpt-4o failed, using gpt-4o-mini results`)
             }
           } catch (retryError) {
             console.error('Auto-upgrade error:', retryError)
-            console.log(`   Continuing with gpt-5-mini-2025-08-07 results`)
+            console.log(`   Continuing with gpt-4o-mini results`)
           }
         } else {
           console.log(`✅ Master analysis complete with ${analysisFramework.totalQuestions} questions answered using ${modelUsed}`)

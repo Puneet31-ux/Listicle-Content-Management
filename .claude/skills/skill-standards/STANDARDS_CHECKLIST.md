@@ -51,7 +51,7 @@ This is the authoritative list of standards ALL skills must meet.
 
 ## Summary
 
-**Total: 16 standards (15 auto-fixable)**
+**Total: 17 standards (16 auto-fixable)**
 
 ---
 

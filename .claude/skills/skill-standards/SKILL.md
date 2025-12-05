@@ -113,7 +113,7 @@ Display all current standards:
 ├─ Audit trail logging
 └─ Cross-skill learning ready
 
-Total: 16 standards across 4 categories
+Total: 17 standards across 4 categories
 ```
 
 ---

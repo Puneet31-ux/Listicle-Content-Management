@@ -300,6 +300,41 @@ export const useKanbanStore = create<KanbanState>()(
               : task
           ),
         })),
+
+      // Iteration & Refinement operations
+      addIterationRecord: (taskId, iterationRecord) =>
+        set((state) => ({
+          tasks: state.tasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  warpSkill: {
+                    ...(task.warpSkill || { messages: [] }),
+                    iterationHistory: [
+                      ...(task.warpSkill?.iterationHistory || []),
+                      iterationRecord,
+                    ],
+                    currentIteration: iterationRecord.iterationNumber,
+                  },
+                }
+              : task
+          ),
+        })),
+
+      setTaskNeedsRefinement: (taskId, needsRefinement) =>
+        set((state) => ({
+          tasks: state.tasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  warpSkill: {
+                    ...(task.warpSkill || { messages: [] }),
+                    needsRefinement,
+                  },
+                }
+              : task
+          ),
+        })),
     }),
     {
       name: STORAGE_KEY,

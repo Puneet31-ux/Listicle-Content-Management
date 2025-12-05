@@ -1,5 +1,7 @@
 export type TaskPriority = 'low' | 'normal' | 'high'
 
+export type ResearchDepth = 'surface' | 'medium' | 'deep'
+
 export interface Task {
   id: string
   title: string
@@ -10,6 +12,8 @@ export interface Task {
   priority?: TaskPriority
   assignee?: string // Initials for avatar
   braveInput?: string // Specific input for Brave search to find relevant articles
+  sourceUrls?: string[] // URLs to scrape with Bright Data for deep content analysis
+  researchDepth?: ResearchDepth // Depth level for research (surface/medium/deep)
 
   // AI Research fields
   aiResearch?: {
@@ -25,6 +29,13 @@ export interface Task {
     }
     researchedAt: string
     isLoading?: boolean
+    researchSources?: {
+      braveSearch: boolean
+      brightData: boolean
+    }
+    scrapedUrlsCount?: number
+    depth?: ResearchDepth
+    iteration?: number
   }
 
   // WARP Skill fields
@@ -42,6 +53,26 @@ export interface Task {
     copyMetadata?: CopyGenerationMetadata
     isCopyGenerating?: boolean
     copyGeneratedAt?: string
+    // Iteration & Refinement Loop
+    iterationHistory?: IterationRecord[]
+    currentIteration?: number
+    needsRefinement?: boolean
+  }
+}
+
+export interface IterationRecord {
+  iterationNumber: number
+  generatedAt: string
+  variations: CopyVariation[]
+  evaluation?: {
+    feedback: string
+    score: number // 1-10
+    strengths: string[]
+    improvements: string[]
+  }
+  researchUpdate?: {
+    additionalSourceUrls?: string[]
+    newInsights?: string
   }
 }
 
@@ -111,4 +142,8 @@ export interface KanbanState {
   setTaskCopyGenerating: (taskId: string, isGenerating: boolean) => void
   setTaskCopyVariations: (taskId: string, variations: CopyVariation[], metadata: CopyGenerationMetadata) => void
   clearTaskCopyVariations: (taskId: string) => void
+
+  // Iteration & Refinement
+  addIterationRecord: (taskId: string, iterationRecord: IterationRecord) => void
+  setTaskNeedsRefinement: (taskId: string, needsRefinement: boolean) => void
 }

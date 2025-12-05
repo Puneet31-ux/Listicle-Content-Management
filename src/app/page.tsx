@@ -69,6 +69,9 @@ export default function Home() {
     try {
       setTaskResearchLoading(task.id, true)
 
+      // Determine iteration number (if re-researching, increment)
+      const iteration = (task.aiResearch?.iteration || 0) + 1
+
       const response = await fetch('/api/research', {
         method: 'POST',
         headers: {
@@ -76,6 +79,9 @@ export default function Home() {
         },
         body: JSON.stringify({
           topic: task.title,
+          sourceUrls: task.sourceUrls, // Pass source URLs for Bright Data scraping
+          depth: task.researchDepth || 'medium', // Default to medium depth
+          iteration, // Track iteration number
         }),
       })
 
@@ -90,6 +96,10 @@ export default function Home() {
         finalPrompt: data.finalPrompt,
         backstory: data.backstory,
         researchedAt: data.researchedAt,
+        researchSources: data.researchSources,
+        scrapedUrlsCount: data.scrapedUrlsCount,
+        depth: data.depth,
+        iteration: data.iteration,
         isLoading: false,
       })
 

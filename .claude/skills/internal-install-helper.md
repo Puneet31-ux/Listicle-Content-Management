@@ -28,7 +28,98 @@ This skill activates automatically when:
    - `/sync-diff` - Show differences
    - `/features-*` - Feature management commands
 
+5. **CRITICAL: On repository load - Validate settings integrity**
+   - Read `.claude/sync-manifest.json` to get `requiredCommands`
+   - Read `.claude/settings.json` to get current commands
+   - Compare required vs actual commands
+   - Alert user if ANY commands are missing
+   - Guide user to fix the discrepancy
+
 ## How It Works
+
+### CRITICAL: Settings Integrity Validation (Run First!)
+
+```typescript
+// Pseudo-code for settings validation - RUN ON EVERY REPO LOAD
+async function validateSettingsIntegrity() {
+  // 1. Check if sync-manifest exists
+  if (!exists('.claude/sync-manifest.json')) {
+    return; // Not a sync-enabled repo
+  }
+
+  const manifest = readJSON('.claude/sync-manifest.json');
+  const projectSettings = readJSON('.claude/settings.json');
+  const userSettings = readJSON('~/.claude/settings.json');
+
+  const missing = {
+    project: [],
+    user: []
+  };
+
+  // 2. For each sync group, validate required commands exist
+  for (const [groupName, groupData] of Object.entries(manifest.syncGroups)) {
+    if (!groupData.requiredCommands) continue;
+
+    const requiredCommands = groupData.requiredCommands.commands;
+
+    for (const cmd of requiredCommands) {
+      // Check project-level settings
+      if (!projectSettings.commands?.[cmd]) {
+        missing.project.push({ group: groupName, command: cmd });
+      }
+
+      // Check user-level settings
+      if (!userSettings.commands?.[cmd]) {
+        missing.user.push({ group: groupName, command: cmd });
+      }
+    }
+  }
+
+  // 3. Alert if any commands are missing
+  if (missing.project.length > 0) {
+    showAlert(`
+⚠️ SETTINGS INTEGRITY CHECK FAILED
+
+The following commands are REQUIRED by sync groups but MISSING from .claude/settings.json:
+
+${missing.project.map(m => `❌ /${m.command} (required by ${m.group})`).join('\n')}
+
+This means these slash commands won't work in this project!
+
+RECOMMENDED FIX:
+1. Run /sync-pull to sync from user settings
+2. Or manually add the missing commands to .claude/settings.json
+
+[Fix Now - Run /sync-pull] [Show me what's missing] [Ignore]
+    `);
+  }
+
+  if (missing.user.length > 0) {
+    showAlert(`
+⚠️ USER SETTINGS CHECK
+
+The following commands exist in this project but are MISSING from your global ~/.claude/settings.json:
+
+${missing.user.map(m => `⚡ /${m.command} (from ${m.group})`).join('\n')}
+
+These commands work in this project but NOT globally in other repos.
+
+Would you like to sync them to your user settings?
+
+[Yes - Sync to ~/.claude/] [No - Just use in this project] [Show details]
+    `);
+  }
+
+  if (missing.project.length === 0 && missing.user.length === 0) {
+    log('✅ Settings integrity check passed - all required commands present');
+  }
+}
+
+// Run validation on repo load
+onRepositoryLoad(() => {
+  validateSettingsIntegrity();
+});
+```
 
 ### On User Settings Change
 

@@ -21,6 +21,7 @@ import { Task as TaskType, Column as ColumnType } from '@/lib/types'
 interface BoardProps {
   onAddTask: (columnId: string) => void
   onEditTask: (task: TaskType) => void
+  onGenerateStrategy: (task: TaskType) => void
   onResearchTask: (task: TaskType) => void
   onBraveSearch?: (task: TaskType) => void
   onEditColumn: (column: ColumnType) => void
@@ -29,6 +30,7 @@ interface BoardProps {
 export function Board({
   onAddTask,
   onEditTask,
+  onGenerateStrategy,
   onResearchTask,
   onBraveSearch,
   onEditColumn,
@@ -176,6 +178,7 @@ export function Board({
               tasks={columnTasks}
               onAddTask={onAddTask}
               onEditTask={onEditTask}
+              onGenerateStrategy={onGenerateStrategy}
               onResearchTask={onResearchTask}
               onBraveSearch={onBraveSearch}
               onEditColumn={onEditColumn}

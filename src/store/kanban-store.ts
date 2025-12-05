@@ -143,7 +143,47 @@ export const useKanbanStore = create<KanbanState>()(
           }
         }),
 
-      // AI Research operations
+      // Strategic Analysis operations (Step 1)
+      setTaskStrategyGenerating: (taskId, isGenerating) =>
+        set((state) => ({
+          tasks: state.tasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  strategicAnalysis: {
+                    ...(task.strategicAnalysis || {
+                      category: '',
+                      depth: 'medium',
+                      totalQuestions: 0,
+                      categories: [],
+                      strategyPreview: {
+                        prompt: '',
+                        promptLength: 0,
+                        estimatedTokens: 0
+                      },
+                      skillPrinciples: [],
+                      generatedAt: ''
+                    }),
+                    isGenerating,
+                  },
+                }
+              : task
+          ),
+        })),
+
+      setTaskStrategy: (taskId, strategy) =>
+        set((state) => ({
+          tasks: state.tasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  strategicAnalysis: strategy,
+                }
+              : task
+          ),
+        })),
+
+      // AI Research operations (Step 2)
       setTaskResearchLoading: (taskId, isLoading) =>
         set((state) => ({
           tasks: state.tasks.map((task) =>

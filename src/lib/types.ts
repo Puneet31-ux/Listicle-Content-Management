@@ -15,7 +15,27 @@ export interface Task {
   sourceUrls?: string[] // URLs to scrape with Bright Data for deep content analysis
   researchDepth?: ResearchDepth // Depth level for research (surface/medium/deep)
 
-  // AI Research fields
+  // Strategic Analysis (Step 1 - Intelligence Layer)
+  strategicAnalysis?: {
+    category: string
+    depth: ResearchDepth
+    totalQuestions: number
+    categories: Array<{
+      name: string
+      description: string
+      questionCount: number
+    }>
+    strategyPreview: {
+      prompt: string
+      promptLength: number
+      estimatedTokens: number
+    }
+    skillPrinciples: string[]
+    generatedAt: string
+    isGenerating?: boolean
+  }
+
+  // AI Research fields (Step 2 - API Execution)
   aiResearch?: {
     finalPrompt: string
     backstory: {
@@ -120,7 +140,11 @@ export interface KanbanState {
   deleteTask: (id: string) => void
   moveTask: (taskId: string, targetColumnId: string, newOrder: number) => void
 
-  // AI Research
+  // Strategic Analysis (Step 1)
+  setTaskStrategyGenerating: (taskId: string, isGenerating: boolean) => void
+  setTaskStrategy: (taskId: string, strategy: Task['strategicAnalysis']) => void
+
+  // AI Research (Step 2)
   setTaskResearchLoading: (taskId: string, isLoading: boolean) => void
   setTaskResearch: (taskId: string, research: Task['aiResearch']) => void
 

@@ -11,11 +11,12 @@ import { PRIORITY_COLORS, AVATAR_COLORS } from '@/lib/constants'
 interface TaskCardProps {
   task: Task
   onEdit: (task: Task) => void
+  onGenerateStrategy: (task: Task) => void
   onResearch: (task: Task) => void
   onBraveSearch?: (task: Task) => void
 }
 
-export function TaskCard({ task, onEdit, onResearch, onBraveSearch }: TaskCardProps) {
+export function TaskCard({ task, onEdit, onGenerateStrategy, onResearch, onBraveSearch }: TaskCardProps) {
   const {
     attributes,
     listeners,
@@ -85,22 +86,91 @@ export function TaskCard({ task, onEdit, onResearch, onBraveSearch }: TaskCardPr
             {task.assignee || task.title.substring(0, 2).toUpperCase()}
           </div>
 
-          {/* Research Buttons */}
+          {/* Research Buttons - 2-Step Workflow */}
           <div className="flex flex-col gap-1.5">
-            {/* AI Research Button */}
+            {/* STEP 1: Generate Strategy Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onGenerateStrategy(task)
+              }}
+              disabled={task.strategicAnalysis?.isGenerating}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200',
+                task.strategicAnalysis?.isGenerating
+                  ? 'bg-amber-100 text-amber-700 cursor-wait'
+                  : task.strategicAnalysis && !task.strategicAnalysis.isGenerating
+                  ? 'bg-green-100 text-green-700 border border-green-300'
+                  : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 hover:scale-[1.02] shadow-sm hover:shadow-md'
+              )}
+              title="Step 1: Generate strategic analysis with skill intelligence"
+            >
+              {task.strategicAnalysis?.isGenerating ? (
+                <>
+                  <svg
+                    className="w-3.5 h-3.5 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  <span>Analyzing...</span>
+                </>
+              ) : task.strategicAnalysis && !task.strategicAnalysis.isGenerating ? (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <span>✓ Strategy Ready</span>
+                </>
+              ) : (
+                <>
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                    />
+                  </svg>
+                  <span>1. Strategy</span>
+                </>
+              )}
+            </button>
+
+            {/* STEP 2: Execute Research Button */}
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 onResearch(task)
               }}
-              disabled={task.aiResearch?.isLoading}
+              disabled={!task.strategicAnalysis || task.aiResearch?.isLoading}
               className={cn(
                 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200',
                 task.aiResearch?.isLoading
                   ? 'bg-indigo-100 text-indigo-700 cursor-wait'
+                  : !task.strategicAnalysis
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   : 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700 hover:scale-[1.02] shadow-sm hover:shadow-md'
               )}
-              title="AI Research (requires OpenAI)"
+              title={!task.strategicAnalysis ? "Run Step 1 first" : "Step 2: Execute research with APIs"}
             >
               {task.aiResearch?.isLoading ? (
                 <>
@@ -140,12 +210,12 @@ export function TaskCard({ task, onEdit, onResearch, onBraveSearch }: TaskCardPr
                       d="M13 10V3L4 14h7v7l9-11h-7z"
                     />
                   </svg>
-                  <span>AI Research</span>
+                  <span>2. Research</span>
                 </>
               )}
             </button>
 
-            {/* Brave Results Button */}
+            {/* Brave Search Button (Optional) */}
             {onBraveSearch && (
               <button
                 onClick={(e) => {
@@ -208,7 +278,38 @@ export function TaskCard({ task, onEdit, onResearch, onBraveSearch }: TaskCardPr
           )}
         </div>
 
-        {/* Research Results Preview */}
+        {/* Strategy Analysis Preview (Step 1 Complete) */}
+        {task.strategicAnalysis && !task.strategicAnalysis.isGenerating && (
+          <div className="mb-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs">
+            <div className="flex items-center justify-between gap-1 text-amber-800 font-medium mb-1">
+              <div className="flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                Strategy Ready
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  alert(`🎯 STRATEGIC ANALYSIS\n\nCategory: ${task.strategicAnalysis?.category}\nQuestions: ${task.strategicAnalysis?.totalQuestions}\n\nPrompt: ${task.strategicAnalysis?.strategyPreview.promptLength} chars\n\nSkill Principles:\n${task.strategicAnalysis?.skillPrinciples.join('\n')}\n\nClick "2. Research" to execute the full analysis with APIs!`)
+                }}
+                className="flex items-center gap-1 px-2 py-0.5 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors"
+                title="View strategic analysis details"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>View Strategy</span>
+              </button>
+            </div>
+            <div className="text-amber-700 leading-relaxed">
+              ✓ Category: {task.strategicAnalysis.category}
+              <span className="block">📊 {task.strategicAnalysis.totalQuestions} questions loaded</span>
+            </div>
+          </div>
+        )}
+
+        {/* Research Results Preview (Step 2 Complete) */}
         {task.aiResearch && !task.aiResearch.isLoading && (
           <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded text-xs">
             <div className="flex items-center justify-between gap-1 text-green-800 font-medium mb-1">
@@ -225,12 +326,12 @@ export function TaskCard({ task, onEdit, onResearch, onBraveSearch }: TaskCardPr
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
                   className="flex items-center gap-1 px-2 py-0.5 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                  title="View full research results"
+                  title="View full research results with comprehensive analysis"
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  <span>View Details</span>
+                  <span>View Search Results</span>
                 </a>
               )}
             </div>

@@ -28,12 +28,15 @@ export default function Home() {
   const [braveTaskTitle, setBraveTaskTitle] = useState('')
   const [braveSearchQuery, setBraveSearchQuery] = useState('')
 
+  const setTaskStrategyGenerating = useKanbanStore((state) => state.setTaskStrategyGenerating)
+  const setTaskStrategy = useKanbanStore((state) => state.setTaskStrategy)
   const setTaskResearchLoading = useKanbanStore((state) => state.setTaskResearchLoading)
   const setTaskResearch = useKanbanStore((state) => state.setTaskResearch)
   const setTaskCopyGenerating = useKanbanStore((state) => state.setTaskCopyGenerating)
   const setTaskCopyVariations = useKanbanStore((state) => state.setTaskCopyVariations)
   const moveTask = useKanbanStore((state) => state.moveTask)
   const tasks = useKanbanStore((state) => state.tasks)
+  const columns = useKanbanStore((state) => state.columns)
 
   const handleAddTask = (columnId: string) => {
     setSelectedTask(undefined)
@@ -55,6 +58,53 @@ export default function Home() {
   const handleEditColumn = (column: Column) => {
     setSelectedColumn(column)
     setColumnDialogOpen(true)
+  }
+
+  const handleGenerateStrategy = async (task: Task) => {
+    if (task.strategicAnalysis?.isGenerating) return
+
+    try {
+      setTaskStrategyGenerating(task.id, true)
+
+      const response = await fetch('/api/generate-strategy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          topic: task.title,
+          depth: task.researchDepth || 'medium',
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Strategy generation failed')
+      }
+
+      const data = await response.json()
+
+      setTaskStrategy(task.id, {
+        category: data.category,
+        depth: data.depth,
+        totalQuestions: data.totalQuestions,
+        categories: data.categories,
+        strategyPreview: data.strategyPreview,
+        skillPrinciples: data.skillPrinciples,
+        generatedAt: new Date().toISOString(),
+        isGenerating: false,
+      })
+
+      alert(`✅ Strategic analysis generated!\n\nCategory: ${data.category}\nQuestions: ${data.totalQuestions}\n\nClick "View Strategy" to see the full prompt.`)
+    } catch (error) {
+      console.error('Strategy generation error:', error)
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Failed to generate strategy. Please try again.'
+      )
+      setTaskStrategyGenerating(task.id, false)
+    }
   }
 
   const handleResearchTask = async (task: Task) => {
@@ -98,6 +148,17 @@ export default function Home() {
         isLoading: false,
       })
 
+      // Move task to next column after successful research
+      const currentColumnIndex = columns.findIndex(col => col.id === task.columnId)
+      if (currentColumnIndex >= 0 && currentColumnIndex < columns.length - 1) {
+        const nextColumn = columns[currentColumnIndex + 1]
+        const nextColumnTasks = tasks.filter(t => t.columnId === nextColumn.id)
+        const nextOrder = nextColumnTasks.length
+
+        console.log(`✅ Research complete! Moving task to "${nextColumn.title}"`)
+        moveTask(task.id, nextColumn.id, nextOrder)
+      }
+
       if (data.note) {
         // Show toast for OpenAI missing key
         if (data.note.includes('OPENAI_API_KEY')) {
@@ -105,6 +166,8 @@ export default function Home() {
         } else {
           alert(data.note)
         }
+      } else {
+        alert(`✅ Research complete!\n\nView the full analysis by clicking "View Search Results"`)
       }
     } catch (error) {
       console.error('Research error:', error)
@@ -254,6 +317,7 @@ export default function Home() {
         <Board
           onAddTask={handleAddTask}
           onEditTask={handleEditTask}
+          onGenerateStrategy={handleGenerateStrategy}
           onResearchTask={handleResearchTask}
           onBraveSearch={handleBraveSearch}
           onEditColumn={handleEditColumn}

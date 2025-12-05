@@ -31,6 +31,7 @@ interface ColumnProps {
   tasks: Task[]
   onAddTask: (columnId: string) => void
   onEditTask: (task: Task) => void
+  onGenerateStrategy: (task: Task) => void
   onResearchTask: (task: Task) => void
   onBraveSearch?: (task: Task) => void
   onEditColumn: (column: ColumnType) => void
@@ -41,6 +42,7 @@ export function Column({
   tasks,
   onAddTask,
   onEditTask,
+  onGenerateStrategy,
   onResearchTask,
   onBraveSearch,
   onEditColumn,
@@ -146,6 +148,7 @@ export function Column({
                   key={task.id}
                   task={task}
                   onEdit={onEditTask}
+                  onGenerateStrategy={onGenerateStrategy}
                   onResearch={onResearchTask}
                   onBraveSearch={onBraveSearch}
                 />

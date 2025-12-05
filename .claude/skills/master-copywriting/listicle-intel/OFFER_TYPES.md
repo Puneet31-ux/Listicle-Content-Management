@@ -6,11 +6,25 @@ Central registry of all offer types that have been analyzed. Check here before r
 
 ---
 
+## Audience Categories (Primary)
+
+These are audience-first categories that span multiple offer types.
+
+| Audience | Description | Last Updated | Offers Covered | Status |
+|----------|-------------|--------------|----------------|--------|
+| **senior-listicles** | 50-75+ focused content | 2025-12-05 | HELOC, discounts, Medicare, income | Active |
+
+---
+
 ## Analyzed Offer Types
 
 | Offer Type | Category | Last Updated | Competitors | Patterns | Status |
 |------------|----------|--------------|-------------|----------|--------|
-| *(none yet)* | - | - | - | - | - |
+| senior-listicles | Audience | 2025-12-05 | 5 analyzed | 15+ patterns | Active |
+| senior-listicles/heloc | Financial | Pending | - | - | Pending |
+| senior-listicles/discounts | Savings | 2025-12-05 | 5 analyzed | 10+ patterns | Active |
+| senior-listicles/medicare | Insurance | Pending | - | - | Pending |
+| senior-listicles/income | Earning | Pending | - | - | Pending |
 
 ---
 

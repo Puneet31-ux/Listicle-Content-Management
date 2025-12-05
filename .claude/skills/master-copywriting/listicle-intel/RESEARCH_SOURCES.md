@@ -52,6 +52,69 @@ This is where you add URLs and strategic direction for competitor research. When
 
 ---
 
+## Audience Categories
+
+### Senior Listicles (Primary Focus)
+
+**Status:** Analyzed - Patterns Extracted
+
+**Description:** Senior-focused listicles across ALL offer types. This is our primary audience category.
+
+#### Competitors Analyzed
+| URL | Type | Priority | Status |
+|-----|------|----------|--------|
+| https://askchapter.org/magazine/budgeting-financial-wellness-tips/saving-money/best-discounts-for-seniors | Discounts | High | Analyzed |
+| https://www.theseniorlist.com/senior-discounts/ | Discounts | High | Analyzed |
+| https://www.moneytalksnews.com/slideshows/amazing-senior-discounts-for/ | Discounts | High | Analyzed |
+| https://www.seniorlifestyle.com/resources/blog/top-senior-discounts/ | Discounts | Medium | Analyzed |
+| https://www.seniorliving.org/finance/senior-discounts/ | Discounts | Medium | Analyzed |
+
+#### Search Queries to Run
+- "senior discounts 2025"
+- "best discounts for seniors"
+- "AARP discounts list"
+- "senior savings tips"
+- "how seniors can save money"
+
+#### Sub-Offer Types (Within Senior Category)
+- **HELOC/Home Equity** - LendingTree, Bankrate senior pages
+- **Medicare/Insurance** - Medicare.gov, eHealth, Boomer Benefits
+- **Discounts** - AARP, TheseniorList, RetireGuide
+- **Income/Earning** - FlexJobs, AARP Work, RetiredBrains
+- **Savings** - Senior financial blogs, government sites
+
+#### Focus Areas
+**Extract:**
+- Headline patterns (year, numbers, benefit)
+- Trust signals (AARP, BBB, author bylines)
+- CTA language (low-friction, phone options)
+- Psychology (dignity, independence, security)
+- Structure (category organization, jump links)
+
+**Ignore:**
+- Condescending content
+- Scammy-looking pages
+- Outdated info (pre-2024)
+
+#### Our Competitive Edge
+- More comprehensive offer comparison
+- Cleaner, more scannable format
+- Personalization (age, location, needs)
+- Mobile-first design
+- Honest about what's discontinued
+
+#### Analysis Files
+```
+analysis/senior-listicles/
+├── OVERVIEW.md (category deep-dive)
+├── patterns.md (extracted patterns)
+├── psychology.md (senior triggers)
+├── cta-library.md (proven CTAs)
+└── sub-offers/ (offer-specific)
+```
+
+---
+
 ## Offer Types
 
 ### Debt Relief

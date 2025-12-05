@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { saveResearchToMarkdown, ResearchResults } from '@/lib/save-research'
+import { detectOfferCategory, getAnalysisQuestions } from '@/lib/analysis-framework'
 
 type ResearchDepth = 'surface' | 'medium' | 'deep'
 
@@ -390,10 +391,122 @@ Make the prompt specific and actionable - not generic advice. Reference actual e
         const promptData = await promptResponse.json()
         const finalPrompt = promptData.choices[0].message.content || ''
 
+        // PHASE 2.5: Comprehensive Analysis Framework
+        // Detect offer category and load appropriate questions
+        console.log(`🔍 Detecting offer category for: "${topic}"`)
+        const offerCategory = detectOfferCategory(topic)
+        const analysisFramework = getAnalysisQuestions(offerCategory, depth)
+
+        console.log(`📋 Generating comprehensive analysis (${analysisFramework.totalQuestions} questions) for category: ${offerCategory}`)
+
+        // Format all questions for AI analysis
+        const formattedQuestions = analysisFramework.categories
+          .map(category => {
+            const questionsList = category.questions
+              .map(q => `${q.id}. ${q.question}`)
+              .join('\n\n')
+            return `## ${category.name}\n${category.description}\n\n${questionsList}`
+          })
+          .join('\n\n---\n\n')
+
+        // Use OpenAI to answer all questions based on scraped content
+        const analysisResponse = await fetch(
+          'https://api.openai.com/v1/chat/completions',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${openaiApiKey}`,
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o-mini', // Use cheaper model for long analysis
+              messages: [
+                {
+                  role: 'system',
+                  content: `You are an expert listicle offer analyst. Your job is to answer comprehensive deep-dive questions about an offer based on competitor content analysis.
+
+**Your Analysis Must:**
+1. Be specific and detailed - cite actual phrases, numbers, and examples from the content provided
+2. Identify gaps - if information is missing, say "Information not found in source content - recommend gathering [specific data]"
+3. Extract exact language - when analyzing CTAs, pain points, or messaging, quote directly from sources
+4. Think psychologically - understand reader motivations, fears, and desires
+5. Be actionable - every answer should help a copywriter craft better listicle content
+
+**Answer Format:**
+For each question, provide:
+- **Direct Answer:** The specific answer based on source analysis
+- **Evidence:** Quotes or specific details from the scraped content that support your answer
+- **Gaps:** What information is missing that would strengthen the analysis
+- **Copywriting Insight:** How this answer should inform the listicle copy
+
+Return your analysis as a JSON object with this structure:
+{
+  "category": "offer category",
+  "analysis": {
+    "Core Offer Mechanics": [
+      {
+        "question_id": 1,
+        "question": "...",
+        "answer": "...",
+        "evidence": ["quote 1", "quote 2"],
+        "gaps": "...",
+        "copywriting_insight": "..."
+      }
+    ],
+    "Reader Psychology & Pain Points": [...],
+    ...
+  }
+}`
+                },
+                {
+                  role: 'user',
+                  content: `**Offer Topic:** ${topic}
+
+**Research Sources:**
+${JSON.stringify(combinedContent, null, 2)}
+
+**Basic Insights Already Extracted:**
+${JSON.stringify(backstory, null, 2)}
+
+---
+
+**COMPREHENSIVE ANALYSIS QUESTIONS:**
+
+${formattedQuestions}
+
+---
+
+Analyze all provided content and answer each question thoroughly. Be specific, cite evidence, identify gaps, and provide actionable copywriting insights.`
+                }
+              ],
+              response_format: { type: 'json_object' },
+              temperature: 0.4,
+              max_tokens: 4000
+            }),
+          }
+        )
+
+        let comprehensiveAnalysis = null
+        if (analysisResponse.ok) {
+          const analysisData = await analysisResponse.json()
+          comprehensiveAnalysis = JSON.parse(
+            analysisData.choices[0].message.content || '{}'
+          )
+          console.log(`✅ Comprehensive analysis complete with ${analysisFramework.totalQuestions} questions answered`)
+        } else {
+          console.warn('⚠️ Comprehensive analysis failed, continuing with basic insights only')
+        }
+
         // Collect OpenAI insights for markdown file
         collectedOpenAIInsights = {
           finalPrompt,
           backstory,
+          comprehensiveAnalysis: comprehensiveAnalysis || undefined,
+          analysisFramework: {
+            category: offerCategory,
+            totalQuestions: analysisFramework.totalQuestions,
+            depth
+          }
         }
 
         // Save all research results to markdown file

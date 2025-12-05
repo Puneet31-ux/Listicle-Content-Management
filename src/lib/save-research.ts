@@ -42,6 +42,12 @@ export interface ResearchResults {
       targeting_angles?: string[]
       cta_strategies?: string[]
     }
+    comprehensiveAnalysis?: any // Full 50-question analysis
+    analysisFramework?: {
+      category: string
+      totalQuestions: number
+      depth: string
+    }
   }
   errors?: {
     brave?: string
@@ -208,6 +214,52 @@ function generateMarkdown(results: ResearchResults): string {
       md += `#### CTA Strategies:\n`
       backstory.cta_strategies.forEach(item => md += `- ${item}\n`)
       md += `\n`
+    }
+
+    // Comprehensive Analysis Section
+    if (openAIInsights.comprehensiveAnalysis && openAIInsights.analysisFramework) {
+      md += `\n---\n\n`
+      md += `## 📋 Comprehensive Offer Analysis\n\n`
+      md += `**Category:** ${openAIInsights.analysisFramework.category}\n`
+      md += `**Questions Analyzed:** ${openAIInsights.analysisFramework.totalQuestions}\n`
+      md += `**Depth:** ${openAIInsights.analysisFramework.depth}\n\n`
+      md += `*This analysis uses the proven 50-question framework to deeply understand your offer, audience psychology, and conversion pathway.*\n\n`
+
+      const analysis = openAIInsights.comprehensiveAnalysis.analysis || {}
+
+      // Iterate through each category in the analysis
+      Object.entries(analysis).forEach(([categoryName, questions]: [string, any]) => {
+        md += `### ${categoryName}\n\n`
+
+        if (Array.isArray(questions)) {
+          questions.forEach((q: any) => {
+            md += `#### Q${q.question_id}: ${q.question}\n\n`
+            md += `**Answer:** ${q.answer}\n\n`
+
+            if (q.evidence && q.evidence.length > 0) {
+              md += `**Evidence from Sources:**\n`
+              q.evidence.forEach((ev: string) => md += `- "${ev}"\n`)
+              md += `\n`
+            }
+
+            if (q.gaps) {
+              md += `**Information Gaps:** ${q.gaps}\n\n`
+            }
+
+            if (q.copywriting_insight) {
+              md += `**💡 Copywriting Insight:** ${q.copywriting_insight}\n\n`
+            }
+
+            md += `---\n\n`
+          })
+        }
+      })
+
+      md += `\n### How to Use This Analysis\n\n`
+      md += `1. **Review each answer** - Understand what we know and what gaps exist\n`
+      md += `2. **Note copywriting insights** - Each insight shows how to use the answer in your listicle\n`
+      md += `3. **Fill gaps** - Where information is missing, gather it before writing copy\n`
+      md += `4. **Pass to copywriting agent** - This analysis feeds directly into the copy generation process\n\n`
     }
   }
 

@@ -23,7 +23,6 @@ interface BoardProps {
   onEditTask: (task: TaskType) => void
   onResearchTask: (task: TaskType) => void
   onBraveSearch?: (task: TaskType) => void
-  onWarpSkill?: (task: TaskType) => void
   onEditColumn: (column: ColumnType) => void
 }
 
@@ -32,7 +31,6 @@ export function Board({
   onEditTask,
   onResearchTask,
   onBraveSearch,
-  onWarpSkill,
   onEditColumn,
 }: BoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -180,7 +178,6 @@ export function Board({
               onEditTask={onEditTask}
               onResearchTask={onResearchTask}
               onBraveSearch={onBraveSearch}
-              onWarpSkill={onWarpSkill}
               onEditColumn={onEditColumn}
             />
           )

@@ -5,7 +5,6 @@ import { Board } from '@/components/kanban/board'
 import { TaskDialog } from '@/components/kanban/task-dialog'
 import { ColumnDialog } from '@/components/kanban/column-dialog'
 import { BraveResultsModal } from '@/components/kanban/brave-results-modal'
-import { WarpSkillModal } from '@/components/kanban/warp-skill-modal'
 import { Button } from '@/components/ui/button'
 import { Task, Column } from '@/lib/types'
 import { useKanbanStore } from '@/store/kanban-store'
@@ -28,14 +27,9 @@ export default function Home() {
   const [braveLoading, setBraveLoading] = useState(false)
   const [braveTaskTitle, setBraveTaskTitle] = useState('')
   const [braveSearchQuery, setBraveSearchQuery] = useState('')
-  const [warpModalOpen, setWarpModalOpen] = useState(false)
-  const [warpCurrentTask, setWarpCurrentTask] = useState<Task | undefined>()
 
   const setTaskResearchLoading = useKanbanStore((state) => state.setTaskResearchLoading)
   const setTaskResearch = useKanbanStore((state) => state.setTaskResearch)
-  const setTaskWarpLoading = useKanbanStore((state) => state.setTaskWarpLoading)
-  const addWarpMessage = useKanbanStore((state) => state.addWarpMessage)
-  const clearWarpConversation = useKanbanStore((state) => state.clearWarpConversation)
   const setTaskCopyGenerating = useKanbanStore((state) => state.setTaskCopyGenerating)
   const setTaskCopyVariations = useKanbanStore((state) => state.setTaskCopyVariations)
   const moveTask = useKanbanStore((state) => state.moveTask)
@@ -69,6 +63,9 @@ export default function Home() {
     try {
       setTaskResearchLoading(task.id, true)
 
+      // Determine iteration number (if re-researching, increment)
+      const iteration = (task.aiResearch?.iteration || 0) + 1
+
       const response = await fetch('/api/research', {
         method: 'POST',
         headers: {
@@ -76,6 +73,9 @@ export default function Home() {
         },
         body: JSON.stringify({
           topic: task.title,
+          sourceUrls: task.sourceUrls, // Pass source URLs for Bright Data scraping
+          depth: task.researchDepth || 'medium', // Default to medium depth
+          iteration, // Track iteration number
         }),
       })
 
@@ -90,6 +90,10 @@ export default function Home() {
         finalPrompt: data.finalPrompt,
         backstory: data.backstory,
         researchedAt: data.researchedAt,
+        researchSources: data.researchSources,
+        scrapedUrlsCount: data.scrapedUrlsCount,
+        depth: data.depth,
+        iteration: data.iteration,
         isLoading: false,
       })
 
@@ -153,123 +157,7 @@ export default function Home() {
     }
   }
 
-  const handleWarpSkill = (task: Task) => {
-    setWarpCurrentTask(task)
-    setWarpModalOpen(true)
-
-    // If no messages yet, auto-send the initial message with task details
-    if (!task.warpSkill?.messages || task.warpSkill.messages.length === 0) {
-      handleWarpSendMessage(
-        task,
-        `I want to analyze this listicle offer:\n\nTitle: ${task.title}\nDescription: ${task.description || 'N/A'}\n\nPlease help me understand the target audience, pain points, and how to write compelling copy.`
-      )
-    }
-  }
-
-  const handleWarpSendMessage = async (task: Task, message: string) => {
-    if (!task) return
-
-    try {
-      // Add user message to store
-      addWarpMessage(task.id, { role: 'user', content: message })
-      setTaskWarpLoading(task.id, true)
-
-      // Build messages array for API
-      const messages = [
-        ...(task.warpSkill?.messages || []),
-        { role: 'user' as const, content: message },
-      ]
-
-      const response = await fetch('/api/warp-skill', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages,
-          title: task.title,
-          description: task.description,
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'WARP skill request failed')
-      }
-
-      const data = await response.json()
-
-      // Add assistant response to store
-      addWarpMessage(task.id, {
-        role: 'assistant',
-        content: data.message,
-      })
-    } catch (error) {
-      console.error('WARP Skill error:', error)
-      alert(
-        '❌ ' +
-          (error instanceof Error
-            ? error.message
-            : 'Failed to analyze offer. Please check your Anthropic API key.')
-      )
-    } finally {
-      setTaskWarpLoading(task.id, false)
-    }
-  }
-
-  const handleWarpClearConversation = () => {
-    if (warpCurrentTask) {
-      clearWarpConversation(warpCurrentTask.id)
-    }
-  }
-
-  const handleGenerateCopy = async (task: Task) => {
-    // Validate min 5 messages
-    if (!task.warpSkill?.messages || task.warpSkill.messages.length < 5) {
-      alert('Need at least 5 messages in the conversation before generating copy.')
-      return
-    }
-
-    try {
-      // Set loading state
-      setTaskCopyGenerating(task.id, true)
-
-      // Auto-move to "in-progress" if not already there
-      if (task.columnId !== 'in-progress') {
-        const inProgressTasks = tasks.filter(t => t.columnId === 'in-progress')
-        const nextOrder = inProgressTasks.length > 0
-          ? Math.max(...inProgressTasks.map(t => t.order)) + 1
-          : 0
-        moveTask(task.id, 'in-progress', nextOrder)
-      }
-
-      // Call Layer 2 API
-      const response = await fetch('/api/write-listicle-copy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversationHistory: task.warpSkill.messages,
-          taskTitle: task.title,
-          taskDescription: task.description,
-          category: task.warpSkill.category,
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Copy generation failed')
-      }
-
-      const data = await response.json()
-      setTaskCopyVariations(task.id, data.variations, data.metadata)
-      alert(`✅ Successfully generated ${data.variations.length} copy variations!`)
-
-    } catch (error) {
-      console.error('Copy generation error:', error)
-      alert('❌ ' + (error instanceof Error ? error.message : 'Failed to generate copy. Please check your Anthropic API key.'))
-      setTaskCopyGenerating(task.id, false)
-    }
-  }
+  const [showGuide, setShowGuide] = useState(false)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -277,15 +165,70 @@ export default function Home() {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Listicle Content Manager
-              </h1>
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Listicle Content Manager
+                </h1>
+                <button
+                  onClick={() => setShowGuide(!showGuide)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  How it Works
+                </button>
+              </div>
               <p className="text-sm text-gray-600 mt-1">
-                Manage your content creation workflow with AI-powered research
+                AI-powered competitor research → Extract CTAs, offers, and insights → Write better copy
               </p>
+
+              {/* Guide Panel */}
+              {showGuide && (
+                <div className="mt-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-4">
+                  <div className="grid grid-cols-3 gap-4 text-xs">
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-xs">1</div>
+                        <h3 className="font-semibold text-gray-900">Research</h3>
+                      </div>
+                      <ul className="space-y-1 text-gray-700 leading-relaxed">
+                        <li>• Add listicle offer tasks</li>
+                        <li>• Paste competitor URLs (optional)</li>
+                        <li>• Click "AI Research" button</li>
+                        <li>• Get insights & CTAs extracted</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <div className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold text-xs">2</div>
+                        <h3 className="font-semibold text-gray-900">APIs Used</h3>
+                      </div>
+                      <ul className="space-y-1 text-gray-700 leading-relaxed">
+                        <li>• <strong>Brave:</strong> Find headlines & news</li>
+                        <li>• <strong>Bright Data:</strong> Scrape exact copy</li>
+                        <li>• <strong>OpenAI:</strong> Generate insights</li>
+                        <li>• Depth: Surface/Medium/Deep</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-xs">3</div>
+                        <h3 className="font-semibold text-gray-900">Write & Publish</h3>
+                      </div>
+                      <ul className="space-y-1 text-gray-700 leading-relaxed">
+                        <li>• Review research results</li>
+                        <li>• Copy insights to clipboard</li>
+                        <li>• Write compelling copy</li>
+                        <li>• Move to "Ready to Publish"</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            <Button onClick={handleAddColumn} className="h-10 px-4 text-sm">
+            <Button onClick={handleAddColumn} className="h-10 px-4 text-sm ml-4">
               <svg
                 className="w-4 h-4 mr-2"
                 fill="none"
@@ -312,7 +255,6 @@ export default function Home() {
           onEditTask={handleEditTask}
           onResearchTask={handleResearchTask}
           onBraveSearch={handleBraveSearch}
-          onWarpSkill={handleWarpSkill}
           onEditColumn={handleEditColumn}
         />
       </main>
@@ -339,23 +281,6 @@ export default function Home() {
         keywords={braveKeywords}
         isLoading={braveLoading}
         searchQuery={braveSearchQuery}
-      />
-
-      <WarpSkillModal
-        open={warpModalOpen}
-        onOpenChange={setWarpModalOpen}
-        taskTitle={warpCurrentTask?.title || ''}
-        messages={warpCurrentTask?.warpSkill?.messages || []}
-        isLoading={warpCurrentTask?.warpSkill?.isLoading || false}
-        onSendMessage={(message) =>
-          warpCurrentTask && handleWarpSendMessage(warpCurrentTask, message)
-        }
-        onClearConversation={handleWarpClearConversation}
-        copyVariations={warpCurrentTask?.warpSkill?.copyVariations}
-        copyMetadata={warpCurrentTask?.warpSkill?.copyMetadata}
-        isCopyGenerating={warpCurrentTask?.warpSkill?.isCopyGenerating || false}
-        onGenerateCopy={() => warpCurrentTask && handleGenerateCopy(warpCurrentTask)}
-        canGenerateCopy={(warpCurrentTask?.warpSkill?.messages?.length || 0) >= 5}
       />
     </div>
   )

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { saveResearchToMarkdown, ResearchResults } from '@/lib/save-research'
 
 type ResearchDepth = 'surface' | 'medium' | 'deep'
 
@@ -14,6 +15,12 @@ export async function POST(req: NextRequest) {
   let braveStartTime = 0, braveEndTime = 0
   let brightDataStartTime = 0, brightDataEndTime = 0
   let openAIStartTime = 0, openAIEndTime = 0
+
+  // Variables to collect ALL research data for markdown file
+  let collectedBraveResults: any = null
+  let collectedBrightDataResults: any = null
+  let collectedOpenAIInsights: any = null
+  let researchErrors: { brave?: string; brightData?: string; openAI?: string } = {}
 
   try {
     const {
@@ -88,11 +95,23 @@ export async function POST(req: NextRequest) {
           scrapedContent = brightDataResult.scrapedContent || []
           researchSources.brightData = true
           console.log(`✅ Scraped ${scrapedContent.length} URLs in "${mode}" mode`)
+
+          // Collect Bright Data results for markdown file
+          collectedBrightDataResults = {
+            scrapedPages: scrapedContent.map((scraped: any) => ({
+              url: scraped.url,
+              content: scraped.content,
+              extracted: scraped.metadata,
+            })),
+          }
         } else {
+          const errorText = await brightDataResponse.text()
           console.warn('⚠️ Bright Data scraping failed, continuing with Brave Search only')
+          researchErrors.brightData = `Bright Data error (${brightDataResponse.status}): ${errorText}`
         }
       } catch (error) {
         console.error('Bright Data error:', error)
+        researchErrors.brightData = error instanceof Error ? error.message : 'Bright Data request failed'
         // Continue with Brave Search even if Bright Data fails
       }
     }
@@ -115,8 +134,6 @@ export async function POST(req: NextRequest) {
         `https://api.search.brave.com/res/v1/web/search?${new URLSearchParams({
           q: topic,
           count: depth === 'surface' ? '5' : '10',
-          country: 'us',
-          search_lang: 'en',
         })}`,
         {
           headers: {
@@ -127,7 +144,10 @@ export async function POST(req: NextRequest) {
       )
 
       if (!searchResponse.ok) {
-        throw new Error(`Brave Search API error: ${searchResponse.statusText}`)
+        const errorBody = await searchResponse.text()
+        console.error('Brave Search API error:', errorBody)
+        researchErrors.brave = `Brave Search API error (${searchResponse.status}): ${searchResponse.statusText}`
+        throw new Error(`Brave Search API error (${searchResponse.status}): ${searchResponse.statusText}`)
       }
 
       const searchData = await searchResponse.json()
@@ -141,6 +161,13 @@ export async function POST(req: NextRequest) {
           description: result.description,
           url: result.url,
         }))
+
+      // Collect Brave results for markdown file
+      collectedBraveResults = {
+        query: topic,
+        results: researchSummary,
+        keywords: searchData.query?.altered_keywords || [],
+      }
 
       researchSources.braveSearch = true
       console.log(`✅ Found ${researchSummary.length} results from Brave Search`)
@@ -156,9 +183,6 @@ export async function POST(req: NextRequest) {
         `https://api.search.brave.com/res/v1/web/search?${new URLSearchParams({
           q: `"${topic}" (listicle OR article)`,
           count: '5',
-          country: 'us',
-          search_lang: 'en',
-          freshness: 'py', // Past year for recent content
         })}`,
         {
           headers: {
@@ -366,6 +390,28 @@ Make the prompt specific and actionable - not generic advice. Reference actual e
         const promptData = await promptResponse.json()
         const finalPrompt = promptData.choices[0].message.content || ''
 
+        // Collect OpenAI insights for markdown file
+        collectedOpenAIInsights = {
+          finalPrompt,
+          backstory,
+        }
+
+        // Save all research results to markdown file
+        const researchFile = await saveResearchToMarkdown({
+          taskId: 'auto-generated', // Will be updated by frontend when task ID is known
+          taskTitle: topic,
+          depth,
+          iteration,
+          timestamp: new Date().toISOString(),
+          sourceUrls,
+          braveSearchResults: collectedBraveResults,
+          brightDataResults: collectedBrightDataResults,
+          openAIInsights: collectedOpenAIInsights,
+          errors: Object.keys(researchErrors).length > 0 ? researchErrors : undefined,
+        })
+
+        console.log(`✅ Research results saved to: ${researchFile}`)
+
         return NextResponse.json({
           finalPrompt,
           backstory,
@@ -374,6 +420,7 @@ Make the prompt specific and actionable - not generic advice. Reference actual e
           scrapedUrlsCount: scrapedContent.length,
           depth,
           iteration,
+          researchFile, // Return filename for frontend to display
         })
       } catch (aiError) {
         console.error('AI processing error:', aiError)
@@ -388,7 +435,8 @@ Make the prompt specific and actionable - not generic advice. Reference actual e
             errorMessage = 'OpenAI quota exceeded - using fallback research'
           }
         }
-        // Store error for fallback note
+        // Store error for fallback note and in researchErrors
+        researchErrors.openAI = errorMessage
         ;(globalThis as any).__lastAiError = errorMessage
         // Fall through to fallback response
       }
@@ -428,6 +476,29 @@ Make sure to:
 Sources for reference:
 ${researchSummary.slice(0, 3).map((r: any) => `- ${r.url}`).join('\n')}`
 
+    // Collect fallback OpenAI insights for markdown file
+    collectedOpenAIInsights = {
+      finalPrompt: fallbackPrompt,
+      backstory: fallbackBackstory,
+    }
+
+    // Save all research results to markdown file (including fallback)
+    const researchFile = await saveResearchToMarkdown({
+      taskId: 'auto-generated', // Will be updated by frontend when task ID is known
+      taskTitle: topic,
+      depth,
+      iteration,
+      timestamp: new Date().toISOString(),
+      sourceUrls,
+      braveSearchResults: collectedBraveResults,
+      brightDataResults: collectedBrightDataResults,
+      openAIInsights: collectedOpenAIInsights,
+      errors: Object.keys(researchErrors).length > 0 ? researchErrors : undefined,
+      fallbackUsed: true,
+    })
+
+    console.log(`✅ Research results saved to: ${researchFile} (fallback mode)`)
+
     return NextResponse.json({
       finalPrompt: fallbackPrompt,
       backstory: fallbackBackstory,
@@ -436,6 +507,7 @@ ${researchSummary.slice(0, 3).map((r: any) => `- ${r.url}`).join('\n')}`
       scrapedUrlsCount: scrapedContent.length,
       depth,
       iteration,
+      researchFile, // Return filename for frontend to display
       note: openaiApiKey
         ? ((globalThis as any).__lastAiError || 'AI processing failed, using fallback')
         : 'Add OPENAI_API_KEY to .env.local for AI-powered insights',

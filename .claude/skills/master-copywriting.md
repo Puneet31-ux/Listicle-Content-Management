@@ -1,55 +1,77 @@
 ---
 name: master-copywriting
-description: Master copywriting skill for creating high-converting, human-sounding copy. Uses iterative healing passes, removes AI patterns, and ensures competitive advantage. Includes listicle-specific workflows.
+description: Global copywriting skill with optimized 7-pass workflow, credit-efficient processing, AI pattern removal, and self-healing value capture
 skill_path: skills/master-copywriting/SKILL.md
+auto_apply: true
+favorite: true
+version: 1.1.0
+author: Bobby
 ---
 
-This skill creates high-converting copy through an iterative healing process.
+# Master Copywriting Skill
 
-## When to Use
+## Overview
 
-Use this skill when:
-- Writing listicle comparison copy
-- Writing blog posts that need to convert
-- Creating ad copy (headlines, descriptions, CTAs)
-- Writing emails (subject lines, body copy)
-- Creating landing page copy
+This skill creates high-converting, human-sounding copy through an iterative healing process. It applies automatically to all copy/content work at appropriate engagement levels.
 
-## What It Does
+## Commands
 
-1. **Conducts competitive research** before writing anything
-2. **Drafts copy** using proven formulas and psychology
-3. **Runs 7 focused passes** to catch and fix issues
-4. **Removes AI patterns** ruthlessly
-5. **Verifies competitive advantage** against real competitors
-6. **Ensures human voice** through read-aloud testing
+| Command | What It Does |
+|---------|-------------|
+| `/copy-write` | Generate new copy with optimized 7-pass workflow |
+| `/copy-check` | Review existing copy with scorecard |
+| `/copy-feedback` | Log feedback to improve system (self-healing) |
+| `/copy-help` | Show full system help + next steps |
+
+## How It Works
+
+**Optimized Pass Flow (Credit-Efficient):**
+1. Passes 1-2 run together during drafting (Structure + Value)
+2. Pass 3 goes deep on AI pattern removal
+3. PAUSE for user preview
+4. Passes 4-7 only run if user wants more polish
+
+**Automatic Behavior:**
+- Light checks apply to all copy/content automatically
+- Say "skip copy checks" to pause
+- Say "full copy review" for deep analysis
+
+**Self-Healing:**
+- Every feedback session captures VALUE LESSONS
+- Lessons logged with dates in SELF_HEALING.md
+- System gets better with each use
+
+## Files in This Skill
+
+```
+.claude/skills/master-copywriting/
+├── SKILL.md                    # Main execution workflow
+├── GLOBAL_BEHAVIOR.md          # Smart throttling rules
+├── SELF_HEALING.md             # Feedback log + improvements
+├── MASTER_COPYWRITING_SYSTEM.md # Full philosophy
+├── references/
+│   ├── ai-pattern-removal.md   # AI tells & fixes
+│   ├── psychology-triggers.md  # Behavioral psychology
+│   ├── headline-formulas.md    # Headline patterns
+│   └── cta-patterns.md         # CTA best practices
+└── workflows/
+    └── write-listicle-copy.md  # Listicle-specific workflow
+```
 
 ## Core Principle
 
 **Great copy is never written in one pass. It's healed through multiple focused checks, each looking for ONE thing.**
 
-## Files in This Skill
-
-```
-master-copywriting/
-├── SKILL.md                           # Main skill execution
-├── workflows/
-│   └── write-listicle-copy.md         # Listicle-specific workflow
-└── references/
-    ├── ai-pattern-removal.md          # AI tells and how to fix them
-    ├── psychology-triggers.md         # Behavioral psychology guide
-    ├── headline-formulas.md           # Headline patterns and formulas
-    └── cta-patterns.md                # CTA best practices
-```
-
-## Required Reading
-
-Before using this skill, read:
-- `.claude/docs/MASTER_COPYWRITING_SYSTEM.md` - Full philosophy and methodology
-
 ## Quick Start
 
-1. Tell me what copy you need (listicle, blog, ad, email, landing page)
-2. Provide the topic/offer details
-3. I'll conduct research, draft, and run all 7 passes
-4. You'll receive polished copy with competitive analysis
+1. Run `/copy-help` to see full documentation
+2. Run `/copy-write` to generate new copy
+3. Run `/copy-check` to review existing copy
+4. Run `/copy-feedback` when something doesn't work
+
+## Sync Information
+
+This skill is managed by the sync system:
+- **Source of Truth:** User settings (`~/.claude/settings.json`)
+- **Maintainer:** Bobby (approval required for changes)
+- **Version Control:** Changes via PR, alerts on unauthorized edits

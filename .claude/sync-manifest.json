@@ -1,20 +1,20 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "version": "1.0.0",
-  "lastUpdated": "2025-12-04T15:06:00Z",
-  "author": "Lizzie",
+  "version": "1.1.0",
+  "lastUpdated": "2025-12-05T12:45:00Z",
+  "author": "Bobby",
   "maintainer": {
-    "name": "Lizzie",
-    "email": "lizzie@example.com",
+    "name": "Bobby",
+    "email": "bobby@example.com",
     "isSourceOfTruth": true,
     "permissions": {
       "canModifyManifest": true,
       "canModifySyncGroups": true,
-      "requiresApprovalFrom": "Lizzie"
+      "requiresApprovalFrom": "Bobby"
     }
   },
   "permissions": {
-    "allowedModifiers": ["Lizzie"],
+    "allowedModifiers": ["Bobby", "Lizzie"],
     "unauthorizedChangeHandling": {
       "enabled": true,
       "alertMaintainer": true,
@@ -88,6 +88,89 @@
       "metadata": {
         "createdAt": "2025-12-04T17:00:00Z",
         "updatedAt": "2025-12-04T17:00:00Z",
+        "status": "active",
+        "maturity": "stable",
+        "license": "MIT"
+      }
+    },
+    "master-copywriting": {
+      "version": "1.1.0",
+      "description": "Global copywriting skill with optimized 7-pass workflow, credit-efficient processing, AI pattern removal, and self-healing value capture",
+      "category": "content-creation",
+      "tags": ["copywriting", "marketing", "content", "ai-patterns", "self-healing"],
+      "projectFiles": [
+        ".claude/skills/master-copywriting.md",
+        ".claude/skills/master-copywriting/SKILL.md",
+        ".claude/skills/master-copywriting/GLOBAL_BEHAVIOR.md",
+        ".claude/skills/master-copywriting/SELF_HEALING.md",
+        ".claude/skills/master-copywriting/MASTER_COPYWRITING_SYSTEM.md",
+        ".claude/skills/master-copywriting/references/ai-pattern-removal.md",
+        ".claude/skills/master-copywriting/references/psychology-triggers.md",
+        ".claude/skills/master-copywriting/references/headline-formulas.md",
+        ".claude/skills/master-copywriting/references/cta-patterns.md",
+        ".claude/skills/master-copywriting/workflows/write-listicle-copy.md",
+        ".claude/docs/MASTER_COPYWRITING_SYSTEM.md",
+        ".claude/docs/COPYWRITING_GLOBAL_INTEGRATION.md"
+      ],
+      "requiredCommands": {
+        "description": "Commands that MUST exist in .claude/settings.json for this feature to work",
+        "commands": [
+          "copy-write",
+          "copy-check",
+          "copy-feedback",
+          "copy-help"
+        ],
+        "validation": {
+          "checkOnLoad": true,
+          "alertIfMissing": true,
+          "autoFix": false,
+          "errorMessage": "⚠️ MISSING COMMANDS: The following copywriting commands are missing from .claude/settings.json: {missing}. Run /sync-pull to fix or manually add them."
+        }
+      },
+      "userFiles": [
+        "~/.claude/settings.json",
+        "~/.claude/skills/master-copywriting.md",
+        "~/.claude/skills/master-copywriting/SKILL.md",
+        "~/.claude/skills/master-copywriting/GLOBAL_BEHAVIOR.md",
+        "~/.claude/skills/master-copywriting/SELF_HEALING.md",
+        "~/.claude/skills/master-copywriting/MASTER_COPYWRITING_SYSTEM.md",
+        "~/.claude/skills/master-copywriting/references/ai-pattern-removal.md",
+        "~/.claude/skills/master-copywriting/references/psychology-triggers.md",
+        "~/.claude/skills/master-copywriting/references/headline-formulas.md",
+        "~/.claude/skills/master-copywriting/references/cta-patterns.md",
+        "~/.claude/skills/master-copywriting/workflows/write-listicle-copy.md"
+      ],
+      "linkedRepos": [
+        "Listicle-Content-Management"
+      ],
+      "dependencies": [],
+      "isFavorite": true,
+      "autoApply": true,
+      "systemPromptAddition": "copywriting-baseline",
+      "checksum": {
+        "algorithm": "sha256",
+        "manifest": "",
+        "files": {}
+      },
+      "changelog": [
+        {
+          "version": "1.0.0",
+          "date": "2025-12-05",
+          "author": "Bobby",
+          "type": "feature",
+          "changes": "Initial release: 7-pass copywriting system with AI pattern removal, psychology triggers, headline formulas, CTA patterns"
+        },
+        {
+          "version": "1.1.0",
+          "date": "2025-12-05",
+          "author": "Bobby",
+          "type": "enhancement",
+          "changes": "Added optimized pass flow (1-2 combined, pause at 3), self-healing value capture, credit-efficient processing"
+        }
+      ],
+      "metadata": {
+        "createdAt": "2025-12-05T12:00:00Z",
+        "updatedAt": "2025-12-05T12:45:00Z",
         "status": "active",
         "maturity": "stable",
         "license": "MIT"

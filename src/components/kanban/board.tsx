@@ -24,6 +24,7 @@ interface BoardProps {
   onGenerateStrategy: (task: TaskType) => void
   onResearchTask: (task: TaskType) => void
   onBraveSearch?: (task: TaskType) => void
+  onGenerateCopy?: (task: TaskType, passLevel: 'draft' | 'ai-removal' | 'polish') => void
   onEditColumn: (column: ColumnType) => void
 }
 
@@ -33,6 +34,7 @@ export function Board({
   onGenerateStrategy,
   onResearchTask,
   onBraveSearch,
+  onGenerateCopy,
   onEditColumn,
 }: BoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -181,6 +183,7 @@ export function Board({
               onGenerateStrategy={onGenerateStrategy}
               onResearchTask={onResearchTask}
               onBraveSearch={onBraveSearch}
+              onGenerateCopy={onGenerateCopy}
               onEditColumn={onEditColumn}
             />
           )
@@ -207,7 +210,7 @@ export function Board({
 
             {/* Actual card */}
             <div className="relative">
-              <TaskCard task={activeTask} onEdit={() => {}} onResearch={() => {}} />
+              <TaskCard task={activeTask} onEdit={() => {}} onGenerateStrategy={() => {}} onResearch={() => {}} />
             </div>
           </motion.div>
         )}

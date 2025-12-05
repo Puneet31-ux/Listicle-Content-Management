@@ -221,6 +221,56 @@ export default function Home() {
     }
   }
 
+  const handleGenerateCopy = async (task: Task, passLevel: 'draft' | 'ai-removal' | 'polish') => {
+    if (task.copyGeneration?.isGenerating) return
+
+    if (!task.aiResearch?.researchFile) {
+      alert('❌ Please complete research first before generating copy')
+      return
+    }
+
+    try {
+      setTaskCopyGenerating(task.id, true)
+
+      const response = await fetch('/api/copywriting', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          taskId: task.id,
+          taskTitle: task.title,
+          researchFile: task.aiResearch.researchFile,
+          passLevel,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Copywriting generation failed')
+      }
+
+      const data = await response.json()
+
+      setTaskCopyVariations(task.id, data.variations, data.metadata)
+
+      // Show success message with TOP PICK if available
+      if (data.topPick) {
+        alert(`✅ Copy variations generated!\n\n${data.variations.length} variations created\n\n🏆 TOP PICK: Variation ${data.topPick.variationIndex + 1}\n\nReasoning: ${data.topPick.reasoning}\n\nClick "View Copy" to see all variations.`)
+      } else {
+        alert(`✅ ${data.variations.length} copy variations generated!\n\nClick "View Copy" to review all variations.`)
+      }
+    } catch (error) {
+      console.error('Copywriting error:', error)
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Failed to generate copy. Please check your API key.'
+      )
+      setTaskCopyGenerating(task.id, false)
+    }
+  }
+
   const [showGuide, setShowGuide] = useState(false)
 
   return (
@@ -320,6 +370,7 @@ export default function Home() {
           onGenerateStrategy={handleGenerateStrategy}
           onResearchTask={handleResearchTask}
           onBraveSearch={handleBraveSearch}
+          onGenerateCopy={handleGenerateCopy}
           onEditColumn={handleEditColumn}
         />
       </main>

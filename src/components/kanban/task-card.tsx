@@ -14,9 +14,10 @@ interface TaskCardProps {
   onGenerateStrategy: (task: Task) => void
   onResearch: (task: Task) => void
   onBraveSearch?: (task: Task) => void
+  onGenerateCopy?: (task: Task, passLevel: 'draft' | 'ai-removal' | 'polish') => void
 }
 
-export function TaskCard({ task, onEdit, onGenerateStrategy, onResearch, onBraveSearch }: TaskCardProps) {
+export function TaskCard({ task, onEdit, onGenerateStrategy, onResearch, onBraveSearch, onGenerateCopy }: TaskCardProps) {
   const {
     attributes,
     listeners,
@@ -215,6 +216,131 @@ export function TaskCard({ task, onEdit, onGenerateStrategy, onResearch, onBrave
               )}
             </button>
 
+            {/* STEP 3: Generate Draft Copy Button */}
+            {onGenerateCopy && task.aiResearch && !task.aiResearch.isLoading && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onGenerateCopy(task, 'draft')
+                }}
+                disabled={task.copyGeneration?.isGenerating}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200',
+                  task.copyGeneration?.isGenerating
+                    ? 'bg-emerald-100 text-emerald-700 cursor-wait'
+                    : task.copyGeneration?.variations && task.copyGeneration.variations.length > 0
+                    ? 'bg-green-100 text-green-700 border border-green-300'
+                    : 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 hover:scale-[1.02] shadow-sm hover:shadow-md'
+                )}
+                title="Step 3: Generate copy variations with Pass 1-2"
+              >
+                {task.copyGeneration?.isGenerating ? (
+                  <>
+                    <svg
+                      className="w-3.5 h-3.5 animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    <span>Writing...</span>
+                  </>
+                ) : task.copyGeneration?.variations && task.copyGeneration.variations.length > 0 ? (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span>✓ Copy Ready</span>
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
+                    <span>3. Draft Copy</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* STEP 4: AI Removal Button (Optional - only show if draft exists) */}
+            {onGenerateCopy && task.copyGeneration?.variations && task.copyGeneration.variations.length > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onGenerateCopy(task, 'ai-removal')
+                }}
+                disabled={task.copyGeneration?.isGenerating}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200 bg-gradient-to-r from-rose-500 to-pink-600 text-white hover:from-rose-600 hover:to-pink-700 hover:scale-[1.02] shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Step 4: Run AI Pattern Removal (Pass 3)"
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span>4. AI Removal</span>
+              </button>
+            )}
+
+            {/* STEP 5: Polish Copy Button (Optional - only show if draft exists) */}
+            {onGenerateCopy && task.copyGeneration?.variations && task.copyGeneration.variations.length > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onGenerateCopy(task, 'polish')
+                }}
+                disabled={task.copyGeneration?.isGenerating}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200 bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700 hover:scale-[1.02] shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Step 5: Polish copy with Pass 4-7"
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+                  />
+                </svg>
+                <span>5. Polish</span>
+              </button>
+            )}
+
             {/* Brave Search Button (Optional) */}
             {onBraveSearch && (
               <button
@@ -340,6 +466,40 @@ export function TaskCard({ task, onEdit, onGenerateStrategy, onResearch, onBrave
               {task.aiResearch.researchSources?.braveSearch && !task.aiResearch.researchSources?.brightData && '✓ Found with Brave Search'}
               {task.aiResearch.scrapedUrlsCount && task.aiResearch.scrapedUrlsCount > 0 && (
                 <span className="block">📄 {task.aiResearch.scrapedUrlsCount} page{task.aiResearch.scrapedUrlsCount > 1 ? 's' : ''} analyzed</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Copy Variations Preview (Step 3 Complete) */}
+        {task.copyGeneration?.variations && task.copyGeneration.variations.length > 0 && !task.copyGeneration.isGenerating && (
+          <div className="mb-2 p-2 bg-emerald-50 border border-emerald-200 rounded text-xs">
+            <div className="flex items-center justify-between gap-1 text-emerald-800 font-medium mb-1">
+              <div className="flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                Copy Generated
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const variationsList = task.copyGeneration?.variations?.map((v, idx) => `${idx + 1}. ${v.strategicApproach}\n   Headline: "${v.headline}"\n   Best For: ${v.bestFor}`).join('\n\n')
+                  alert(`🎨 COPY VARIATIONS GENERATED\n\n${task.copyGeneration?.variations?.length} variations created:\n\n${variationsList}\n\nClick the card to view full copy with interactive elements, CTAs, and TOP PICK recommendation.`)
+                }}
+                className="flex items-center gap-1 px-2 py-0.5 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors"
+                title="View copy variations"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                <span>View Copy</span>
+              </button>
+            </div>
+            <div className="text-emerald-700 leading-relaxed">
+              ✓ {task.copyGeneration.variations.length} variation{task.copyGeneration.variations.length > 1 ? 's' : ''} generated
+              {task.copyGeneration.metadata?.generatedAt && (
+                <span className="block">📅 {new Date(task.copyGeneration.metadata.generatedAt).toLocaleString()}</span>
               )}
             </div>
           </div>
